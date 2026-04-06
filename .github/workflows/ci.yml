@@ -37,7 +37,7 @@ jobs:
       - name: Build & run backend tests
         working-directory: backend
         run: |
-          ./backend/gradlew --no-daemon test
+          ./gradlew --no-daemon test
         env:
           GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx2g
 
