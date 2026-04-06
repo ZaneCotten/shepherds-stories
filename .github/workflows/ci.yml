@@ -35,28 +35,27 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Build & run backend tests
+        working-directory: backend
         run: |
-          cd backend
           ./backend/gradlew --no-daemon test
-          cd ..
         env:
           GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx2g
 
       - name: Upload backend test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@main
         with:
           name: backend-test-results
           path: backend/build/test-results/**/*.xml
 
       - name: Set up Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@main
         with:
           node-version: '20'
           cache: 'npm'
 
       - name: Cache frontend node_modules
-        uses: actions/cache@v4
+        uses: actions/cache@main
         with:
           path: frontend/node_modules
           key: frontend-node-${{ hashFiles('frontend/package-lock.json','frontend/yarn.lock') }}
@@ -76,7 +75,7 @@ jobs:
 
       - name: Upload frontend test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@main
         with:
           name: frontend-test-results
           path: frontend/test-results/**/*.xml
