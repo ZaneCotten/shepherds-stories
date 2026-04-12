@@ -1,7 +1,7 @@
 package com.shepherdsstories.data.repositories;
 
 import com.shepherdsstories.data.entities.User;
-import com.shepherdsstories.data.entities.Role;
+import com.shepherdsstories.data.enums.Role;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

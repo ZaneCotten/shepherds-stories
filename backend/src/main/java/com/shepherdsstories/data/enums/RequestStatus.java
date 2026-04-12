@@ -1,4 +1,4 @@
-package com.shepherdsstories.data.entities;
+package com.shepherdsstories.data.enums;
 
 public enum RequestStatus {
     PENDING,

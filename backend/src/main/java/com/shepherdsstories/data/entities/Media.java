@@ -1,5 +1,6 @@
 package com.shepherdsstories.data.entities;
 
+import com.shepherdsstories.data.enums.MediaType;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;

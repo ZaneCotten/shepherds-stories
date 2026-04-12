@@ -1,5 +1,6 @@
 package com.shepherdsstories.data.entities;
 
+import com.shepherdsstories.data.enums.RequestStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
