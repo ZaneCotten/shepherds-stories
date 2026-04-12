@@ -12,7 +12,7 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @Configuration
 public class SecurityConfig {
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(withDefaults())
@@ -31,18 +31,18 @@ public class SecurityConfig {
                 )
                 .oauth2Login(oauth -> oauth
                         .successHandler((request, response, authentication) -> {
-                            response.setStatus(200);
-                            response.setContentType("application/json");
-
-                            // Get the role from the authentication object
                             String role = authentication.getAuthorities().iterator().next().getAuthority();
-                            String username = authentication.getName();
+                            String email = authentication.getName();
 
-
-                            // ONLY FOR TESTING PURPOSES!
-                            // NEED TO PUT IN DTO
-                            // Send it back as JSON
-                            response.getWriter().write("{\"username\":\"" + username + "\", \"role\":\"" + role + "\"}");
+                            assert role != null;
+                            if (role.equals("EMPTY")) {
+                                // Redirect new Google users to pick their role
+                                response.sendRedirect("http://localhost:5173/register/select-role?email=" + email);
+                            } else {
+                                // Known users go to their respective views
+                                String redirectUrl = role.equals("MISSIONARY") ? "/missionary" : "/supporter";
+                                response.sendRedirect("http://localhost:5173" + redirectUrl);
+                            }
                         })
                 )
                 .build();

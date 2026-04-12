@@ -20,12 +20,12 @@ function App() {
                 {/* Route Protection based on Role */}
                 <Route
                     path="/missionary/*"
-                    element={user?.role === 'ROLE_MISSIONARY' ? <MissionaryView/> : <Navigate to="/login"/>}
+                    element={user?.role === 'MISSIONARY' ? <MissionaryView/> : <Navigate to="/login"/>}
                 />
 
                 <Route
                     path="/supporter/*"
-                    element={user?.role === 'ROLE_SUPPORTER' ? <SupporterView/> : <Navigate to="/login"/>}
+                    element={user?.role === 'SUPPORTER' ? <SupporterView/> : <Navigate to="/login"/>}
                 />
 
                 {/* Default Redirect */}
