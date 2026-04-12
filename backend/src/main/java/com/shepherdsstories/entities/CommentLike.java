@@ -1,9 +1,8 @@
-package com.shepherdsstories.data.entities;
+package com.shepherdsstories.entities;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
@@ -12,17 +11,17 @@ import java.time.OffsetDateTime;
 @Getter
 @Setter
 @Entity
-@Table(name = "post_likes")
-public class PostLike {
+@Table(name = "comment_likes")
+public class CommentLike {
 
     @EmbeddedId
-    private PostLikeId id;
+    private CommentLikeId id;
 
-    @MapsId("postId")
+    @MapsId("commentId")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "post_id", nullable = false)
-    private Post post;
+    @JoinColumn(name = "comment_id", nullable = false)
+    private Comment comment;
 
     @MapsId("userId")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -30,7 +29,6 @@ public class PostLike {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ColumnDefault("now()")
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
 

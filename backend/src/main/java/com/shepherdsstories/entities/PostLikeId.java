@@ -1,4 +1,4 @@
-package com.shepherdsstories.data.entities;
+package com.shepherdsstories.entities;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
@@ -14,13 +14,13 @@ import java.util.UUID;
 @Setter
 @EqualsAndHashCode
 @Embeddable
-public class CommentLikeId implements Serializable {
+public class PostLikeId implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @Column(name = "comment_id", nullable = false)
-    private UUID commentId;
+    @Column(name = "post_id", nullable = false)
+    private UUID postId;
 
     @Column(name = "user_id", nullable = false)
     private UUID userId;

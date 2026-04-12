@@ -1,4 +1,4 @@
-package com.shepherdsstories.data.entities;
+package com.shepherdsstories.entities;
 
 import jakarta.persistence.*;
 import lombok.Getter;

@@ -1,4 +1,4 @@
-package com.shepherdsstories.data.entities;
+package com.shepherdsstories.entities;
 
 import com.shepherdsstories.data.enums.RequestStatus;
 import jakarta.persistence.*;

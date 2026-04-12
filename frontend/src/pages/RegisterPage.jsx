@@ -1,68 +1,92 @@
-import React, {useState} from 'react';
-import axios from 'axios';
-import {useNavigate} from 'react-router-dom';
+import {useState} from "react";
+import {useNavigate} from "react-router-dom";
+import axios from "axios";
 import MissionarySignupForm from "../components/MissionarySignupForm.jsx";
 import SupporterSignupForm from "../components/SupporterSignupForm.jsx";
 
 const RegisterPage = () => {
     const [formData, setFormData] = useState({
-        role: 'SUPPORTER', // Default role
-        email: '',
-        password: ''
+        role: "SUPPORTER",
+        email: "",
+        password: "",
+        firstName: "",
+        lastName: "",
+        displayName: "",
+        region: "",
+        biography: ""
     });
+
     const navigate = useNavigate();
 
-    const [role, setRole] = useState('SUPPORTER'); // Default to SUPPORTER
+    const handleChange = (e) => {
+        const {name, value} = e.target;
+        setFormData((prev) => ({
+            ...prev,
+            [name]: value
+        }));
+    };
 
     const handleRegister = async (e) => {
         e.preventDefault();
+
+        const registrationDto = {
+            email: formData.email,
+            password: formData.password,
+            role: formData.role,
+            ...(formData.role === "SUPPORTER" && {
+                firstName: formData.firstName,
+                lastName: formData.lastName
+            }),
+            ...(formData.role === "MISSIONARY" && {
+                displayName: formData.displayName,
+                region: formData.region,
+                biography: formData.biography
+            })
+        };
+
         try {
-            // Hits your Spring Boot @PostMapping("/api/auth/register")
-            await axios.post('/api/auth/register', formData);
-            navigate('/login');
-        } catch (err) {
-            alert(`${role} registration failed`);
+            await axios.post("/api/auth/register", registrationDto);
+            navigate("/login");
+        } catch (error) {
+            console.error("Registration failed:", error);
         }
     };
 
     return (
-        <div className="register-page">
-            <div>
-                <h2 style={{margin: '25px'}}>Join Shepherd's Stories</h2>
+        <div style={{maxWidth: "400px", margin: "50px auto"}}>
+            <h2>Register</h2>
+            <form onSubmit={handleRegister}>
+                <label htmlFor="role-select">Role</label>
+                <br/>
+                <select id="role-select" name="role" value={formData.role} onChange={handleChange}>
+                    <option value="SUPPORTER">Supporter</option>
+                    <option value="MISSIONARY">Missionary</option>
+                </select>
+                <br/>
+                <br/>
 
-                <button style={{margin: '0 25px'}} onClick={() => setRole('SUPPORTER')}>SUPPORTER</button>
-
-                <button style={{margin: '0 25px'}} onClick={() => setRole('MISSIONARY')}>MISSIONARY</button>
-                {role === 'SUPPORTER' ?
-                    <SupporterSignupForm onChange={(e) => setFormData({
-                        ...formData,
-                        [e.target.name]: e.target.value
-                    })} onSubmit={handleRegister}
-                    /> :
-                    <MissionarySignupForm onChange={(e) => setFormData({
-                        ...formData,
-                        [e.target.name]: e.target.value
-                    })} onSubmit={handleRegister}
-                    />
-                }
-            </div>
-            <hr/>
-            <div>
-                <h5>Already have an account?</h5>
-                <a
-                    href="/login"
+                {formData.role === "SUPPORTER" ? (
+                    <SupporterSignupForm formData={formData} onChange={handleChange}/>
+                ) : (
+                    <MissionarySignupForm formData={formData} onChange={handleChange}/>
+                )}
+                <br/>
+                <button type="submit">Register</button>
+            </form>
+            <div className="social-login">
+                <button
+                    type="button"
+                    onClick={() => window.location.href = "http://localhost:8080/oauth2/authorization/google"}
                     style={{
-                        margin: 'auto',
-                        textAlign: 'center',
-                        textDecoration: 'none',
-                        color: 'white'
+                        margin: "20px auto",
+                        display: "block",
+                        padding: "10px 25px"
                     }}
                 >
-                    <strong>Log in</strong>
-                </a>
+                    Sign Up with Google
+                </button>
             </div>
         </div>
-
     );
 };
 

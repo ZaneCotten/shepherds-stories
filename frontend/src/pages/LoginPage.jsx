@@ -24,19 +24,23 @@ const LoginPage = ({onLogin}) => {
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'}
             });
 
-            // The backend now sends { username: "...", role: "ROLE_MISSIONARY" }
-            const userData = response.data;
+            const userData = {
+                ...response.data,
+                role: (response.data?.role || '').replace('ROLE_', '')
+            };
 
             onLogin(userData); // Pass the whole object up to App.jsx
 
-            // Redirect based on role immediately
             if (userData.role === 'MISSIONARY') {
                 navigate('/missionary');
-            } else {
+            } else if (userData.role === 'SUPPORTER') {
                 navigate('/supporter');
+            } else {
+                navigate('/home');
             }
         } catch (err) {
-            setError("Login failed");
+            const message = err.response?.data?.error || 'Login failed';
+            setError(message);
         } finally {
             setIsLoading(false);
         }

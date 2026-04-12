@@ -7,7 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class Application {
 
-    static void main(String[] args) {
+    public static void main(String[] args) {
         // Load .env variables into System properties
         Dotenv dotenv = Dotenv.configure()
                 .ignoreIfMissing() // Prevents crashing if .env is missing

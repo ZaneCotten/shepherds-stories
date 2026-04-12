@@ -1,6 +1,6 @@
 package com.shepherdsstories.data.repositories;
 
-import com.shepherdsstories.data.entities.MissionaryProfile;
+import com.shepherdsstories.entities.MissionaryProfile;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.UUID;

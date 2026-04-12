@@ -1,4 +1,4 @@
-package com.shepherdsstories.data.entities;
+package com.shepherdsstories.entities;
 
 import com.shepherdsstories.data.enums.AuthProvider;
 import com.shepherdsstories.data.enums.Role;
