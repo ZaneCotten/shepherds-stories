@@ -5,7 +5,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class ShepherdsStoriesBackendApplication {
+public class Application {
 
     static void main(String[] args) {
         // Load .env variables into System properties
@@ -17,7 +17,7 @@ public class ShepherdsStoriesBackendApplication {
                 System.setProperty(entry.getKey(), entry.getValue())
         );
 
-        SpringApplication.run(ShepherdsStoriesBackendApplication.class, args);
+        SpringApplication.run(Application.class, args);
     }
 
 }
