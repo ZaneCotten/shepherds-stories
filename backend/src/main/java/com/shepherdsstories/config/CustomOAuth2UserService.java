@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-class CustomOAuth2UserService extends DefaultOAuth2UserService {
+public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final UserRepository userRepository;
 
@@ -30,8 +30,11 @@ class CustomOAuth2UserService extends DefaultOAuth2UserService {
         // Get the provider name
         String clientName = userRequest.getClientRegistration().getRegistrationId();
         String email = oAuth2User.getAttribute("email");
+        String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
+        String oauthId = clientName.toUpperCase() + ":" + normalizedEmail;
 
-        Optional<User> userOptional = userRepository.findByEmail(email);
+        Optional<User> userOptional = userRepository.findByEmailIgnoreCase(normalizedEmail)
+                .or(() -> userRepository.findByOauthId(oauthId));
 
         List<SimpleGrantedAuthority> authorities;
 
