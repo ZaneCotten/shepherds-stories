@@ -1,6 +1,6 @@
 package com.shepherdsstories.data.repositories;
 
-import com.shepherdsstories.data.entities.ConnectionRequest;
+import com.shepherdsstories.entities.ConnectionRequest;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

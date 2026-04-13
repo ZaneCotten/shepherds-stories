@@ -1,0 +1,59 @@
+package com.shepherdsstories.config;
+
+import com.shepherdsstories.entities.User;
+import com.shepherdsstories.data.repositories.UserRepository;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
+import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.stereotype.Service;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+
+@Service
+public class CustomOAuth2UserService extends DefaultOAuth2UserService {
+
+    private final UserRepository userRepository;
+
+    public CustomOAuth2UserService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
+    @Override
+    public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
+        OAuth2User oAuth2User = super.loadUser(userRequest);
+
+        // Get the provider name
+        String clientName = userRequest.getClientRegistration().getRegistrationId();
+        String email = oAuth2User.getAttribute("email");
+        String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
+        String oauthId = clientName.toUpperCase() + ":" + normalizedEmail;
+
+        Optional<User> userOptional = userRepository.findByEmailIgnoreCase(normalizedEmail)
+                .or(() -> userRepository.findByOauthId(oauthId));
+
+        List<SimpleGrantedAuthority> authorities;
+
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+
+            // Make sure this user is allowed to use Google
+            // If they originally signed up with a password, then their authProvider will be null,
+            // so they can be allowed to log in with Google
+            if (!"google".equalsIgnoreCase(clientName)) {
+                throw new OAuth2AuthenticationException("Invalid provider for this account");
+            }
+
+            authorities = Collections.singletonList(new SimpleGrantedAuthority(user.getRole().name()));
+        } else {
+            // The EMPTY role will trigger the redirect in the SuccessHandler
+            authorities = Collections.singletonList(new SimpleGrantedAuthority("EMPTY"));
+        }
+
+        return new DefaultOAuth2User(authorities, oAuth2User.getAttributes(), "email");
+    }
+}

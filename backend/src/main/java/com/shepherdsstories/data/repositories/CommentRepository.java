@@ -1,6 +1,6 @@
 package com.shepherdsstories.data.repositories;
 
-import com.shepherdsstories.data.entities.Comment;
+import com.shepherdsstories.entities.Comment;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

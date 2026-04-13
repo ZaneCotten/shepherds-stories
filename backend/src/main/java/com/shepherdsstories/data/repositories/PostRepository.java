@@ -1,6 +1,6 @@
 package com.shepherdsstories.data.repositories;
 
-import com.shepherdsstories.data.entities.Post;
+import com.shepherdsstories.entities.Post;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

@@ -1,6 +1,6 @@
 package com.shepherdsstories.data.repositories;
 
-import com.shepherdsstories.data.entities.PrayerRequest;
+import com.shepherdsstories.entities.PrayerRequest;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
