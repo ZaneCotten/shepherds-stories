@@ -30,7 +30,6 @@ public class SecurityConfig {
             return String.format("{\"username\":\"%s\",\"role\":\"NO ROLE FOUND\"}", username);
         }
         String role = authentication.getAuthorities().stream()
-                .filter(Objects::nonNull)
                 .map(GrantedAuthority::getAuthority)
                 .filter(Objects::nonNull)
                 .findFirst()
@@ -75,7 +74,68 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, CustomOAuth2UserService customOAuth2UserService, UserRepository userRepository) {
+    public org.springframework.security.web.authentication.AuthenticationSuccessHandler oauth2SuccessHandler(UserRepository userRepository) {
+        return (_, response, authentication) -> {
+            OAuth2AuthenticationToken authToken = (OAuth2AuthenticationToken) authentication;
+            String provider = authToken.getAuthorizedClientRegistrationId().toUpperCase();
+            String email = firstNonBlank(
+                    asString(authToken, "email"),
+                    authentication.getName()
+            );
+            String normalizedEmail = normalizeEmail(email);
+
+            if (normalizedEmail.isBlank()) {
+                response.sendRedirect("http://localhost:5173/login");
+                return;
+            }
+
+            String name = asString(authToken, "name");
+            String givenName = asString(authToken, "given_name");
+            String familyName = asString(authToken, "family_name");
+            String oauthId = provider + ":" + normalizedEmail;
+
+            Optional<User> userOptional = userRepository.findByEmailIgnoreCase(normalizedEmail)
+                    .or(() -> userRepository.findByOauthId(oauthId));
+            if (userOptional.isEmpty()) {
+                String url = String.format(
+                        "http://localhost:5173/register/select-role?email=%s&provider=%s&name=%s&given_name=%s&family_name=%s",
+                        encode(normalizedEmail),
+                        encode(provider),
+                        encode(nullSafe(name)),
+                        encode(nullSafe(givenName)),
+                        encode(nullSafe(familyName))
+                );
+                response.sendRedirect(url);
+            } else {
+                User user = userOptional.get();
+                String role = user.getRole().name();
+                String url = String.format("http://localhost:5173/oauth/callback?username=%s&role=%s",
+                        encode(normalizedEmail), encode(role));
+                response.sendRedirect(url);
+            }
+        };
+    }
+
+    @Bean
+    public org.springframework.security.web.authentication.AuthenticationSuccessHandler formLoginSuccessHandler() {
+        return (_, response, authentication) -> {
+            response.setStatus(HttpServletResponse.SC_OK);
+            response.setContentType("application/json");
+            response.getWriter().write(successBody(authentication));
+        };
+    }
+
+    @Bean
+    public org.springframework.security.web.authentication.AuthenticationFailureHandler formLoginFailureHandler() {
+        return (_, response, _) -> {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\":\"Invalid email or password\"}");
+        };
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http, CustomOAuth2UserService customOAuth2UserService, org.springframework.security.web.authentication.AuthenticationSuccessHandler oauth2SuccessHandler, org.springframework.security.web.authentication.AuthenticationSuccessHandler formLoginSuccessHandler, org.springframework.security.web.authentication.AuthenticationFailureHandler formLoginFailureHandler) {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(withDefaults())
@@ -86,16 +146,8 @@ public class SecurityConfig {
                 .formLogin(form -> form
                         .loginProcessingUrl("/api/auth/login")
                         .usernameParameter("email")
-                        .successHandler((_, response, authentication) -> {
-                            response.setStatus(HttpServletResponse.SC_OK);
-                            response.setContentType("application/json");
-                            response.getWriter().write(successBody(authentication));
-                        })
-                        .failureHandler((_, response, _) -> {
-                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                            response.setContentType("application/json");
-                            response.getWriter().write("{\"error\":\"Invalid email or password\"}");
-                        }))
+                        .successHandler(formLoginSuccessHandler)
+                        .failureHandler(formLoginFailureHandler))
                 .logout(logout -> logout
                         .logoutUrl("/api/auth/logout")
                         .logoutSuccessHandler((_, response, _) ->
@@ -103,45 +155,7 @@ public class SecurityConfig {
                 .oauth2Login(oauth -> oauth
                         .userInfoEndpoint(userInfo -> userInfo
                                 .userService(customOAuth2UserService))
-                        .successHandler((_, response, authentication) -> {
-                            OAuth2AuthenticationToken authToken = (OAuth2AuthenticationToken) authentication;
-                            String provider = authToken.getAuthorizedClientRegistrationId().toUpperCase();
-                            String email = firstNonBlank(
-                                    asString(authToken, "email"),
-                                    authentication.getName()
-                            );
-                            String normalizedEmail = normalizeEmail(email);
-
-                            if (normalizedEmail.isBlank()) {
-                                response.sendRedirect("http://localhost:5173/login");
-                                return;
-                            }
-
-                            String name = asString(authToken, "name");
-                            String givenName = asString(authToken, "given_name");
-                            String familyName = asString(authToken, "family_name");
-                            String oauthId = provider + ":" + normalizedEmail;
-
-                            Optional<User> userOptional = userRepository.findByEmailIgnoreCase(normalizedEmail)
-                                    .or(() -> userRepository.findByOauthId(oauthId));
-                            if (userOptional.isEmpty()) {
-                                String url = String.format(
-                                        "http://localhost:5173/register/select-role?email=%s&provider=%s&name=%s&given_name=%s&family_name=%s",
-                                        encode(normalizedEmail),
-                                        encode(provider),
-                                        encode(nullSafe(name)),
-                                        encode(nullSafe(givenName)),
-                                        encode(nullSafe(familyName))
-                                );
-                                response.sendRedirect(url);
-                            } else {
-                                User user = userOptional.get();
-                                String role = user.getRole().name();
-                                String url = String.format("http://localhost:5173/oauth/callback?username=%s&role=%s",
-                                        encode(normalizedEmail), encode(role));
-                                response.sendRedirect(url);
-                            }
-                        })
+                        .successHandler(oauth2SuccessHandler)
                 )
                 .build();
     }
