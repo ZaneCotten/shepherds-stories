@@ -4,6 +4,8 @@ import com.shepherdsstories.data.enums.MediaType;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.UUID;
 
@@ -28,7 +30,8 @@ public class Media {
     private String fileName;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "media_type", nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "media_type", columnDefinition = "media_type", nullable = false)
     private MediaType mediaType;
 
     @Column(name = "order_number", nullable = false)

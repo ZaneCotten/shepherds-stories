@@ -1,5 +1,6 @@
 package com.shepherdsstories.services;
 
+import com.shepherdsstories.data.enums.AuthProvider;
 import com.shepherdsstories.data.enums.Role;
 import com.shepherdsstories.data.repositories.MissionaryProfileRepository;
 import com.shepherdsstories.data.repositories.SupporterProfileRepository;
@@ -37,9 +38,21 @@ public class RegistrationService {
         User user = userFactory.createBaseUser(dto);
         String secureHash = passwordEncoder.encode(dto.getPassword());
         user.setPasswordHash(secureHash);
-        user.setIsLocked(false);
+        user.setAuthProvider(AuthProvider.LOCAL);
         user = userRepository.save(user);
+        saveRoleProfile(dto, user);
+    }
 
+    @Transactional
+    public void registerSocial(RegistrationRequestDTO dto, String oauthId, AuthProvider authProvider) {
+        User user = userFactory.createBaseUser(dto);
+        user.setAuthProvider(authProvider);
+        user.setOauthId(oauthId);
+        user = userRepository.save(user);
+        saveRoleProfile(dto, user);
+    }
+
+    private void saveRoleProfile(RegistrationRequestDTO dto, User user) {
         if (dto.getRole() == Role.MISSIONARY) {
             missionaryProfileRepository.save(userFactory.createMissionary(user, dto));
             return;

@@ -1,5 +1,7 @@
 package com.shepherdsstories.config;
 
+import com.shepherdsstories.data.repositories.UserRepository;
+import com.shepherdsstories.entities.User;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +14,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.web.SecurityFilterChain;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
+import java.util.Optional;
+
 import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
@@ -23,15 +30,52 @@ public class SecurityConfig {
             return String.format("{\"username\":\"%s\",\"role\":\"NO ROLE FOUND\"}", username);
         }
         String role = authentication.getAuthorities().stream()
+                .filter(Objects::nonNull)
                 .map(GrantedAuthority::getAuthority)
+                .filter(Objects::nonNull)
                 .findFirst()
                 .orElse("");
         return String.format("{\"username\":\"%s\",\"role\":\"%s\"}", username, role);
 
     }
 
+    private static String asString(OAuth2AuthenticationToken authToken, String key) {
+        if (authToken == null) {
+            return null;
+        }
+        return Optional.ofNullable(authToken.getPrincipal())
+                .map(principal -> principal.getAttribute(key))
+                .map(Object::toString)
+                .map(String::trim)
+                .orElse(null);
+    }
+
+    private static String normalizeEmail(String email) {
+        if (email == null) {
+            return null;
+        }
+        return email.trim().toLowerCase();
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return "";
+    }
+
+    private static String nullSafe(String value) {
+        return value == null ? "" : value;
+    }
+
+    private static String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) {
+    public SecurityFilterChain filterChain(HttpSecurity http, CustomOAuth2UserService customOAuth2UserService, UserRepository userRepository) {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(withDefaults())
@@ -42,38 +86,60 @@ public class SecurityConfig {
                 .formLogin(form -> form
                         .loginProcessingUrl("/api/auth/login")
                         .usernameParameter("email")
-                        .successHandler((request, response, authentication) -> {
+                        .successHandler((_, response, authentication) -> {
                             response.setStatus(HttpServletResponse.SC_OK);
                             response.setContentType("application/json");
                             response.getWriter().write(successBody(authentication));
                         })
-                        .failureHandler((request, response, exception) -> {
+                        .failureHandler((_, response, _) -> {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.setContentType("application/json");
                             response.getWriter().write("{\"error\":\"Invalid email or password\"}");
                         }))
                 .logout(logout -> logout
                         .logoutUrl("/api/auth/logout")
-                        .logoutSuccessHandler((request, response, authentication) ->
+                        .logoutSuccessHandler((_, response, _) ->
                                 response.setStatus(HttpServletResponse.SC_OK)))
                 .oauth2Login(oauth -> oauth
-                        .successHandler((request, response, authentication) -> {
-                            String role = authentication.getAuthorities().iterator().next().getAuthority();
-                            String email = authentication.getName();
-
-                            // In OAuth2AuthenticationToken, we can find which provider was used
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService))
+                        .successHandler((_, response, authentication) -> {
                             OAuth2AuthenticationToken authToken = (OAuth2AuthenticationToken) authentication;
-                            String provider = authToken.getAuthorizedClientRegistrationId().toUpperCase(); // "GOOGLE"
+                            String provider = authToken.getAuthorizedClientRegistrationId().toUpperCase();
+                            String email = firstNonBlank(
+                                    asString(authToken, "email"),
+                                    authentication.getName()
+                            );
+                            String normalizedEmail = normalizeEmail(email);
 
-                            assert role != null;
-                            if (role.equals("EMPTY")) {
-                                // Redirect to selection, passing BOTH email and provider
-                                String url = String.format("http://localhost:5173/register/select-role?email=%s&provider=%s",
-                                        email, provider);
+                            if (normalizedEmail.isBlank()) {
+                                response.sendRedirect("http://localhost:5173/login");
+                                return;
+                            }
+
+                            String name = asString(authToken, "name");
+                            String givenName = asString(authToken, "given_name");
+                            String familyName = asString(authToken, "family_name");
+                            String oauthId = provider + ":" + normalizedEmail;
+
+                            Optional<User> userOptional = userRepository.findByEmailIgnoreCase(normalizedEmail)
+                                    .or(() -> userRepository.findByOauthId(oauthId));
+                            if (userOptional.isEmpty()) {
+                                String url = String.format(
+                                        "http://localhost:5173/register/select-role?email=%s&provider=%s&name=%s&given_name=%s&family_name=%s",
+                                        encode(normalizedEmail),
+                                        encode(provider),
+                                        encode(nullSafe(name)),
+                                        encode(nullSafe(givenName)),
+                                        encode(nullSafe(familyName))
+                                );
                                 response.sendRedirect(url);
                             } else {
-                                // Logged in successfully
-                                response.sendRedirect("http://localhost:5173/" + role.toLowerCase() + "view");
+                                User user = userOptional.get();
+                                String role = user.getRole().name();
+                                String url = String.format("http://localhost:5173/oauth/callback?username=%s&role=%s",
+                                        encode(normalizedEmail), encode(role));
+                                response.sendRedirect(url);
                             }
                         })
                 )

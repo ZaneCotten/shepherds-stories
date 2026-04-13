@@ -1,9 +1,20 @@
 import React from "react";
 
 export const SupporterSignupForm = ({formData, onChange}) => {
+    const fieldStyle = {
+        width: "100%",
+        marginBottom: "12px",
+        boxSizing: "border-box",
+        padding: "12px",
+        borderRadius: "8px",
+        border: "1px solid var(--border-input)",
+        backgroundColor: "var(--bg-input)",
+        color: "var(--text-h)"
+    };
+
     return (
         <>
-            <h3>Supporter</h3>
+            <h3 style={{color: "var(--text-h)"}}>Supporter</h3>
             <input
                 type="text"
                 name="firstName"
@@ -11,8 +22,8 @@ export const SupporterSignupForm = ({formData, onChange}) => {
                 value={formData.firstName}
                 required={true}
                 onChange={onChange}
+                style={fieldStyle}
             />
-            <br/>
             <input
                 type="text"
                 name="lastName"
@@ -20,8 +31,8 @@ export const SupporterSignupForm = ({formData, onChange}) => {
                 value={formData.lastName}
                 required={true}
                 onChange={onChange}
+                style={fieldStyle}
             />
-            <br/>
             <input
                 type="email"
                 name="email"
@@ -29,8 +40,8 @@ export const SupporterSignupForm = ({formData, onChange}) => {
                 value={formData.email}
                 required={true}
                 onChange={onChange}
+                style={fieldStyle}
             />
-            <br/>
             <input
                 type="password"
                 name="password"
@@ -38,6 +49,7 @@ export const SupporterSignupForm = ({formData, onChange}) => {
                 value={formData.password}
                 required={true}
                 onChange={onChange}
+                style={fieldStyle}
             />
         </>
     );
