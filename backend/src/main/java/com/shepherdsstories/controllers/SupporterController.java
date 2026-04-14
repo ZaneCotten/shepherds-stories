@@ -7,10 +7,8 @@ import com.shepherdsstories.exceptions.ResourceNotFoundException;
 import com.shepherdsstories.factories.UserFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.OffsetDateTime;
 import java.util.Map;
@@ -44,24 +42,46 @@ public class SupporterController {
     }
 
     @PostMapping("/send-request")
+    @Transactional
     public ResponseEntity<Map<String, String>> sendRequest(@RequestParam String code, org.springframework.security.core.Authentication authentication) {
+        try {
+            return processSendRequest(code, authentication);
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(MESSAGE_KEY, e.getMessage()));
+        }
+    }
+
+    private ResponseEntity<Map<String, String>> processSendRequest(String code, org.springframework.security.core.Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
         User user = getCurrentUser(authentication);
-        Optional<SupporterProfile> supporterOpt = supporterProfileRepository.findById(user.getId());
+        SupporterProfile supporter = getOrCreateSupporterProfile(user);
 
-        SupporterProfile supporter;
-        if (supporterOpt.isEmpty()) {
-            // Missionary acting as a supporter, or any user without a supporter profile
-            supporter = userFactory.createDefaultSupporter(user);
-            supporter = supporterProfileRepository.save(supporter);
-        } else {
-            supporter = supporterOpt.get();
+        MissionaryProfile missionary = findMissionaryByCode(code)
+                .orElseThrow(() -> new ResourceNotFoundException("Missionary not found with given invite code."));
+
+        if (Boolean.TRUE.equals(missionary.getIsReferenceDisabled())) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(MESSAGE_KEY, "Missionary has disabled invitations."));
         }
 
-        // Find missionary
+        if (missionary.getUser().getId().equals(user.getId())) {
+            return ResponseEntity.badRequest().body(Map.of(MESSAGE_KEY, "You cannot follow yourself."));
+        }
+
+        return handleExistingOrNewRequest(missionary, supporter);
+    }
+
+    private SupporterProfile getOrCreateSupporterProfile(User user) {
+        return supporterProfileRepository.findById(user.getId())
+                .orElseGet(() -> {
+                    SupporterProfile newSupporter = userFactory.createDefaultSupporter(user);
+                    return supporterProfileRepository.save(newSupporter);
+                });
+    }
+
+    private Optional<MissionaryProfile> findMissionaryByCode(String code) {
         String trimmedCode = code.trim();
         Optional<MissionaryProfile> profileOpt = missionaryProfileRepository.findByReferenceNumberIgnoreCase(trimmedCode);
         if (profileOpt.isEmpty()) {
@@ -69,35 +89,48 @@ public class SupporterController {
                     .filter(InviteCode::getIsActive)
                     .map(InviteCode::getMissionary);
         }
+        return profileOpt;
+    }
 
-        if (profileOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(MESSAGE_KEY, "Missionary not found with given invite code."));
+    private ResponseEntity<Map<String, String>> handleExistingOrNewRequest(MissionaryProfile missionary, SupporterProfile supporter) {
+        Optional<ConnectionRequest> existingRequestOpt = connectionRepository.findByMissionaryIdAndSupporterId(missionary.getId(), supporter.getId());
+        if (existingRequestOpt.isPresent()) {
+            return processExistingRequest(existingRequestOpt.get());
         }
 
-        MissionaryProfile missionary = profileOpt.get();
-        if (missionary.getIsReferenceDisabled() != null && missionary.getIsReferenceDisabled()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(MESSAGE_KEY, "Missionary has disabled invitations."));
-        }
-
-        // Check if user is following themselves
-        if (missionary.getUser().getId().equals(user.getId())) {
-            return ResponseEntity.badRequest().body(Map.of(MESSAGE_KEY, "You cannot follow yourself."));
-        }
-
-        // Check for existing request
-        if (connectionRepository.existsByMissionaryIdAndSupporterId(missionary.getId(), supporter.getId())) {
-            return ResponseEntity.badRequest().body(Map.of(MESSAGE_KEY, "Request already exists or already connected"));
-        }
-
-        // Create connection request
         ConnectionRequest request = new ConnectionRequest();
         request.setMissionary(missionary);
         request.setSupporter(supporter);
         request.setStatus(RequestStatus.PENDING);
         request.setCreatedAt(OffsetDateTime.now());
-
         connectionRepository.save(request);
 
+        return ResponseEntity.ok(Map.of(MESSAGE_KEY, "Request sent!"));
+    }
+
+    private ResponseEntity<Map<String, String>> processExistingRequest(ConnectionRequest existingRequest) {
+        RequestStatus status = existingRequest.getStatus();
+        if (status == RequestStatus.APPROVED) {
+            return ResponseEntity.badRequest().body(Map.of(MESSAGE_KEY, "Already connected"));
+        } else if (status == RequestStatus.PENDING) {
+            return ResponseEntity.badRequest().body(Map.of(MESSAGE_KEY, "Request already pending"));
+        } else if (status == RequestStatus.REJECTED) {
+            return handleRejectedRequest(existingRequest);
+        } else {
+            return ResponseEntity.badRequest().body(Map.of(MESSAGE_KEY, "Cannot send request at this time."));
+        }
+    }
+
+    private ResponseEntity<Map<String, String>> handleRejectedRequest(ConnectionRequest existingRequest) {
+        OffsetDateTime processedAt = existingRequest.getProcessedAt();
+        if (processedAt != null && processedAt.isAfter(OffsetDateTime.now().minusMinutes(1))) {
+            long secondsLeft = 60 - java.time.Duration.between(processedAt, OffsetDateTime.now()).getSeconds();
+            return ResponseEntity.badRequest().body(Map.of(MESSAGE_KEY, "Request was recently rejected. Please wait " + secondsLeft + " seconds before trying again."));
+        }
+        existingRequest.setStatus(RequestStatus.PENDING);
+        existingRequest.setCreatedAt(OffsetDateTime.now());
+        existingRequest.setProcessedAt(null);
+        connectionRepository.save(existingRequest);
         return ResponseEntity.ok(Map.of(MESSAGE_KEY, "Request sent!"));
     }
 

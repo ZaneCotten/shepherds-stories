@@ -3,8 +3,13 @@ import {useEffect, useState} from "react";
 export const MissionaryView = () => {
     const [profile, setProfile] = useState(null);
     const [requests, setRequests] = useState([]);
+    const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [newPostTitle, setNewPostTitle] = useState("");
+    const [newPostContent, setNewPostContent] = useState("");
+    const [postLoading, setPostLoading] = useState(false);
+    const [editingPost, setEditingPost] = useState(null);
 
     useEffect(() => {
         const fetchProfile = fetch("/api/missionary/profile").then(res => {
@@ -17,10 +22,16 @@ export const MissionaryView = () => {
             return res.json();
         });
 
-        Promise.all([fetchProfile, fetchRequests])
-            .then(([profileData, requestsData]) => {
+        const fetchPosts = fetch("/api/posts").then(res => {
+            if (!res.ok) throw new Error("Failed to fetch posts");
+            return res.json();
+        });
+
+        Promise.all([fetchProfile, fetchRequests, fetchPosts])
+            .then(([profileData, requestsData, postsData]) => {
                 setProfile(profileData);
                 setRequests(requestsData);
+                setPosts(postsData);
                 setLoading(false);
             })
             .catch(err => {
@@ -86,9 +97,66 @@ export const MissionaryView = () => {
         }
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        try {
+            await fetch("/api/auth/logout", {method: 'POST'});
+        } catch (err) {
+            console.error("Logout error:", err);
+        }
         localStorage.removeItem("user");
         window.location.href = "/home";
+    };
+
+    const handleCreatePost = async (e) => {
+        e.preventDefault();
+        if (!newPostTitle || !newPostContent) return;
+
+        setPostLoading(true);
+        try {
+            const url = editingPost ? `/api/posts/${editingPost.id}` : "/api/posts";
+            const method = editingPost ? "PUT" : "POST";
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    title: newPostTitle,
+                    content: newPostContent
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (editingPost) {
+                    setPosts(posts.map(p => p.id === data.id ? data : p));
+                } else {
+                    setPosts([data, ...posts]);
+                }
+                setNewPostTitle("");
+                setNewPostContent("");
+                setEditingPost(null);
+            } else {
+                alert(`Failed to ${editingPost ? 'update' : 'create'} post.`);
+            }
+        } catch (err) {
+            alert(`Error ${editingPost ? 'updating' : 'creating'} post: ${err.message}`);
+        } finally {
+            setPostLoading(false);
+        }
+    };
+
+    const startEditing = (post) => {
+        setEditingPost(post);
+        setNewPostTitle(post.title);
+        setNewPostContent(post.content);
+        window.scrollTo({top: 0, behavior: 'smooth'});
+    };
+
+    const cancelEditing = () => {
+        setEditingPost(null);
+        setNewPostTitle("");
+        setNewPostContent("");
     };
 
     if (loading) return <div style={{padding: "40px", textAlign: "center"}}>Loading...</div>;
@@ -220,6 +288,148 @@ export const MissionaryView = () => {
                     </div>
                 </div>
             )}
+
+            <div style={{
+                width: "100%",
+                maxWidth: "500px",
+                backgroundColor: "var(--bg-card)",
+                padding: "20px",
+                borderRadius: "12px",
+                border: "1px solid var(--border-input)",
+                marginBottom: "30px"
+            }}>
+                <h2 style={{color: "var(--text-h)", fontSize: "1.5rem", marginBottom: "15px", textAlign: "center"}}>
+                    {editingPost ? "Edit Update" : "Post an Update"}
+                </h2>
+                <form onSubmit={handleCreatePost} style={{display: "flex", flexDirection: "column", gap: "10px"}}>
+                    <input
+                        type="text"
+                        placeholder="Title"
+                        value={newPostTitle}
+                        onChange={(e) => setNewPostTitle(e.target.value)}
+                        required
+                        style={{
+                            padding: "10px",
+                            borderRadius: "8px",
+                            border: "1px solid var(--border-input)",
+                            backgroundColor: "var(--bg-input)",
+                            color: "var(--text-h)"
+                        }}
+                    />
+                    <textarea
+                        placeholder="Content"
+                        value={newPostContent}
+                        onChange={(e) => setNewPostContent(e.target.value)}
+                        required
+                        style={{
+                            padding: "10px",
+                            borderRadius: "8px",
+                            border: "1px solid var(--border-input)",
+                            backgroundColor: "var(--bg-input)",
+                            color: "var(--text-h)",
+                            minHeight: "100px",
+                            resize: "vertical"
+                        }}
+                    />
+                    <div style={{display: "flex", gap: "10px"}}>
+                        <button
+                            type="submit"
+                            disabled={postLoading}
+                            style={{
+                                flex: 1,
+                                padding: "10px 20px",
+                                borderRadius: "8px",
+                                backgroundColor: "var(--primary)",
+                                color: "white",
+                                border: "none",
+                                cursor: "pointer",
+                                fontWeight: "bold",
+                                opacity: postLoading ? 0.6 : 1
+                            }}
+                        >
+                            {postLoading ? (editingPost ? "Updating..." : "Posting...") : (editingPost ? "Update Post" : "Post Update")}
+                        </button>
+                        {editingPost && (
+                            <button
+                                type="button"
+                                onClick={cancelEditing}
+                                style={{
+                                    padding: "10px 20px",
+                                    borderRadius: "8px",
+                                    backgroundColor: "var(--bg-input)",
+                                    color: "var(--text-h)",
+                                    border: "1px solid var(--border-input)",
+                                    cursor: "pointer"
+                                }}
+                            >
+                                Cancel
+                            </button>
+                        )}
+                    </div>
+                </form>
+            </div>
+
+            <div style={{
+                width: "100%",
+                maxWidth: "500px",
+                marginBottom: "30px"
+            }}>
+                <h2 style={{color: "var(--text-h)", fontSize: "1.5rem", marginBottom: "15px", textAlign: "center"}}>
+                    Your Updates
+                </h2>
+                {posts.length === 0 ? (
+                    <p style={{textAlign: "center", color: "var(--text-muted)"}}>No updates yet.</p>
+                ) : (
+                    <div style={{display: "flex", flexDirection: "column", gap: "15px"}}>
+                        {posts.map(post => (
+                            <div key={post.id} style={{
+                                backgroundColor: "var(--bg-card)",
+                                padding: "15px",
+                                borderRadius: "12px",
+                                border: "1px solid var(--border-input)"
+                            }}>
+                                <h3 style={{color: "var(--text-h)", marginBottom: "5px"}}>{post.title}</h3>
+                                <div style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    marginBottom: "10px"
+                                }}>
+                                    <p style={{color: "var(--text-muted)", fontSize: "0.8rem"}}>
+                                        {new Date(post.createdAt).toLocaleString([], {
+                                            dateStyle: 'short',
+                                            timeStyle: 'short'
+                                        })}
+                                        {post.updatedAt && new Date(post.updatedAt).getTime() > new Date(post.createdAt).getTime() + 1000 && (
+                                            <span style={{marginLeft: "10px", fontStyle: "italic"}}>
+                                                (Updated: {new Date(post.updatedAt).toLocaleString([], {
+                                                dateStyle: 'short',
+                                                timeStyle: 'short'
+                                            })})
+                                            </span>
+                                        )}
+                                    </p>
+                                    <button
+                                        onClick={() => startEditing(post)}
+                                        style={{
+                                            padding: "3px 8px",
+                                            borderRadius: "4px",
+                                            backgroundColor: "transparent",
+                                            color: "var(--accent)",
+                                            border: "1px solid var(--accent)",
+                                            cursor: "pointer",
+                                            fontSize: "0.75rem"
+                                        }}
+                                    >
+                                        Edit
+                                    </button>
+                                </div>
+                                <p style={{color: "var(--text)", whiteSpace: "pre-wrap"}}>{post.content}</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
 
             <button
                 onClick={handleLogout}
