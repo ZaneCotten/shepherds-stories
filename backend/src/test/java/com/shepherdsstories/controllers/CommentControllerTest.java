@@ -23,6 +23,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -344,14 +345,15 @@ class CommentControllerTest {
         comment.setId(commentId);
         comment.setPost(post);
         comment.setUser(missionaryUser);
+        comment.setIsDeleted(false);
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
-        when(commentRepository.existsByParentComment(comment)).thenReturn(false);
+        when(commentRepository.findAllByPostIdOrderByCreatedAtAsc(post.getId())).thenReturn(List.of(comment));
 
         ResponseEntity<?> response = controller.deleteComment(post.getId(), commentId, missionaryAuth);
 
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
-        verify(commentRepository).delete(comment);
+        verify(commentRepository).deleteAll(anyList());
     }
 
     @Test
@@ -361,10 +363,17 @@ class CommentControllerTest {
         comment.setId(commentId);
         comment.setPost(post);
         comment.setUser(missionaryUser);
+        comment.setIsDeleted(false);
+
+        Comment child = new Comment();
+        child.setId(UUID.randomUUID());
+        child.setPost(post);
+        child.setUser(supporterUser);
+        child.setParentComment(comment);
+        child.setIsDeleted(false); // Active child
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
-        when(commentRepository.existsByParentComment(comment)).thenReturn(true);
-        when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(commentRepository.findAllByPostIdOrderByCreatedAtAsc(post.getId())).thenReturn(List.of(comment, child));
 
         ResponseEntity<?> response = controller.deleteComment(post.getId(), commentId, missionaryAuth);
 
@@ -373,8 +382,7 @@ class CommentControllerTest {
         assert responseDTO != null;
         assertEquals("comment has been deleted", responseDTO.getContent());
         assertTrue(responseDTO.getIsDeleted());
-        verify(commentRepository, never()).delete(comment);
-        verify(commentRepository).save(comment);
+        verify(commentRepository, never()).deleteAll(anyList());
     }
 
     @Test
@@ -401,14 +409,46 @@ class CommentControllerTest {
         comment.setId(commentId);
         comment.setPost(post);
         comment.setUser(supporterUser);
+        comment.setIsDeleted(false);
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
-        when(commentRepository.existsByParentComment(comment)).thenReturn(false);
+        when(commentRepository.findAllByPostIdOrderByCreatedAtAsc(post.getId())).thenReturn(List.of(comment));
 
         // Post author (missionaryAuth) deleting a supporter's comment on their post
         ResponseEntity<?> response = controller.deleteComment(post.getId(), commentId, missionaryAuth);
 
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
-        verify(commentRepository).delete(comment);
+        verify(commentRepository).deleteAll(anyList());
+    }
+
+    @Test
+    void deleteComment_RecursiveCleanupSuccess() {
+        // P (deleted)
+        //   C1 (active)
+        UUID parentId = UUID.randomUUID();
+        Comment parent = new Comment();
+        parent.setId(parentId);
+        parent.setPost(post);
+        parent.setUser(missionaryUser);
+        parent.setIsDeleted(true);
+        parent.setContent("comment has been deleted");
+
+        UUID childId = UUID.randomUUID();
+        Comment child = new Comment();
+        child.setId(childId);
+        child.setPost(post);
+        child.setUser(supporterUser);
+        child.setParentComment(parent);
+        child.setIsDeleted(false);
+
+        when(commentRepository.findById(childId)).thenReturn(Optional.of(child));
+        when(commentRepository.findAllByPostIdOrderByCreatedAtAsc(post.getId())).thenReturn(List.of(parent, child));
+
+        // Deleting the last active child of a soft-deleted parent
+        ResponseEntity<?> response = controller.deleteComment(post.getId(), childId, supporterAuth);
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        // Both parent and child should be deleted
+        verify(commentRepository).deleteAll(anyList());
     }
 }

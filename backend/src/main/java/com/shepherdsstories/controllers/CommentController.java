@@ -17,8 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -164,24 +163,21 @@ public class CommentController {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(java.util.Map.of(ERROR_KEY, "Comment does not belong to this post."));
             }
 
-            boolean isCommentOwner = comment.getUser().getId().equals(user.getId());
-            boolean isPostOwner = comment.getPost().getAuthor().getUser().getId().equals(user.getId());
-
-            if (!isCommentOwner && !isPostOwner) {
-                logger.warn("User {} attempted to delete comment {} owned by {} on post owned by {}",
-                        user.getEmail(), commentId, comment.getUser().getEmail(), comment.getPost().getAuthor().getUser().getEmail());
+            if (!isUserAuthorizedToDelete(comment, user)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of(ERROR_KEY, "You can only delete your own comments or comments on your own post."));
             }
 
-            if (commentRepository.existsByParentComment(comment)) {
-                comment.setContent("comment has been deleted");
-                comment.setIsDeleted(true);
-                commentRepository.save(comment);
-                return ResponseEntity.ok(convertToDTO(comment));
+            comment.setContent("comment has been deleted");
+            comment.setIsDeleted(true);
+            commentRepository.saveAndFlush(comment);
+
+            Set<UUID> usefulIds = pruneUselessComments(postId);
+
+            if (!usefulIds.contains(commentId)) {
+                return ResponseEntity.noContent().build();
             }
 
-            commentRepository.delete(comment);
-            return ResponseEntity.noContent().build();
+            return ResponseEntity.ok(convertToDTO(comment));
         } catch (UnauthenticatedException _) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         } catch (ResourceNotFoundException _) {
@@ -190,6 +186,59 @@ public class CommentController {
             logger.error("CRITICAL ERROR deleting comment", t);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    private boolean isUserAuthorizedToDelete(Comment comment, User user) {
+        boolean isCommentOwner = comment.getUser().getId().equals(user.getId());
+        boolean isPostOwner = comment.getPost().getAuthor().getUser().getId().equals(user.getId());
+
+        if (!isCommentOwner && !isPostOwner) {
+            logger.warn("User {} attempted to delete comment {} owned by {} on post owned by {}",
+                    user.getEmail(), comment.getId(), comment.getUser().getEmail(), comment.getPost().getAuthor().getUser().getEmail());
+            return false;
+        }
+        return true;
+    }
+
+    private Set<UUID> pruneUselessComments(UUID postId) {
+        List<Comment> allComments = commentRepository.findAllByPostIdOrderByCreatedAtAsc(postId);
+        Set<UUID> usefulIds = identifyUsefulComments(allComments);
+
+        List<Comment> rootsToDelete = allComments.stream()
+                .filter(c -> !usefulIds.contains(c.getId()))
+                .filter(c -> c.getParentComment() == null || usefulIds.contains(c.getParentComment().getId()))
+                .collect(Collectors.toList());
+
+        if (!rootsToDelete.isEmpty()) {
+            commentRepository.deleteAll(rootsToDelete);
+            commentRepository.flush();
+        }
+        return usefulIds;
+    }
+
+    private Set<UUID> identifyUsefulComments(List<Comment> allComments) {
+        Set<UUID> usefulIds = new HashSet<>();
+        for (Comment c : allComments) {
+            if (!c.getIsDeleted()) {
+                usefulIds.add(c.getId());
+            }
+        }
+
+        Map<UUID, Comment> commentMap = allComments.stream()
+                .collect(Collectors.toMap(Comment::getId, c -> c));
+
+        List<UUID> toProcess = new ArrayList<>(usefulIds);
+        int index = 0;
+        while (index < toProcess.size()) {
+            Comment c = commentMap.get(toProcess.get(index++));
+            if (c != null && c.getParentComment() != null) {
+                UUID parentId = c.getParentComment().getId();
+                if (usefulIds.add(parentId)) {
+                    toProcess.add(parentId);
+                }
+            }
+        }
+        return usefulIds;
     }
 
     private CommentDTO convertToDTO(Comment comment) {

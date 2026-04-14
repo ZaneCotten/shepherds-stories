@@ -99,11 +99,11 @@ export const CommentSection = ({postId, postAuthorId}) => {
             });
 
             if (response.ok) {
-                if (response.status === 204) {
-                    setComments(comments.filter(c => String(c.id) !== String(commentId)));
-                } else {
-                    const updatedComment = await response.json();
-                    setComments(comments.map(c => String(c.id) === String(commentId) ? updatedComment : c));
+                // Refetch comments to ensure UI stays in sync with recursive backend deletion
+                const res = await fetch(`/api/posts/${postId}/comments`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setComments(data);
                 }
             } else {
                 const errorData = await response.json().catch(() => ({}));
