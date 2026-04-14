@@ -58,6 +58,20 @@ export const SupporterView = () => {
         }
     };
 
+    const handleToggleLike = async (postId) => {
+        try {
+            const response = await fetch(`/api/posts/${postId}/like`, {
+                method: 'POST'
+            });
+            if (response.ok) {
+                const updatedPost = await response.json();
+                setFeed(prevFeed => prevFeed.map(post => post.id === postId ? updatedPost : post));
+            }
+        } catch (err) {
+            console.error("Error toggling like:", err);
+        }
+    };
+
     return (
         <div style={{
             minHeight: "100vh",
@@ -181,8 +195,52 @@ export const SupporterView = () => {
                                         )}
                                     </p>
                                 </div>
-                                <p style={{color: "var(--text)", whiteSpace: "pre-wrap"}}>{post.content}</p>
+                                <p style={{
+                                    color: "var(--text)",
+                                    whiteSpace: "pre-wrap",
+                                    marginBottom: "20px"
+                                }}>{post.content}</p>
+
                                 <CommentSection postId={post.id} postAuthorId={post.authorId}/>
+
+                                <div style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "10px",
+                                    marginTop: "10px",
+                                    borderTop: "1px solid var(--border-input)",
+                                    paddingTop: "10px"
+                                }}>
+                                    <button
+                                        onClick={() => handleToggleLike(post.id)}
+                                        style={{
+                                            backgroundColor: post.liked ? "var(--accent-primary)" : "transparent",
+                                            color: post.liked ? "white" : "var(--text-h)",
+                                            border: "1px solid var(--border-input)",
+                                            borderRadius: "8px",
+                                            padding: "5px 15px",
+                                            cursor: "pointer",
+                                            fontWeight: "bold",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "5px",
+                                            transition: "all 0.2s"
+                                        }}
+                                    >
+                                        <span>{post.liked ? "❤️" : "🤍"}</span>
+                                        <span>Like</span>
+                                    </button>
+                                    <span style={{color: "var(--text-muted)", fontSize: "0.9rem"}}>
+                                        {post.lastLikerName ? (
+                                            <>
+                                                Liked by <strong>{post.lastLikerName}</strong>
+                                                {post.likeCount > 1 && ` and ${post.likeCount - 1} more`}
+                                            </>
+                                        ) : (
+                                            `${post.likeCount} ${post.likeCount === 1 ? "like" : "likes"}`
+                                        )}
+                                    </span>
+                                </div>
                             </div>
                         ))}
                     </div>

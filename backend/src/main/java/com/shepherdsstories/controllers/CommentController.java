@@ -10,6 +10,7 @@ import com.shepherdsstories.exceptions.ResourceNotFoundException;
 import com.shepherdsstories.exceptions.UnauthenticatedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -26,25 +27,29 @@ public class CommentController {
     private static final Logger logger = LoggerFactory.getLogger(CommentController.class);
 
     private static final String ERROR_KEY = "error";
+    private static final String COMMENT_NOT_FOUND = "Comment not found";
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final MissionaryProfileRepository missionaryProfileRepository;
     private final SupporterProfileRepository supporterProfileRepository;
     private final ConnectionRepository connectionRepository;
+    private final CommentLikeRepository commentLikeRepository;
 
     public CommentController(CommentRepository commentRepository,
                              PostRepository postRepository,
                              UserRepository userRepository,
                              MissionaryProfileRepository missionaryProfileRepository,
                              SupporterProfileRepository supporterProfileRepository,
-                             ConnectionRepository connectionRepository) {
+                             ConnectionRepository connectionRepository,
+                             CommentLikeRepository commentLikeRepository) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.missionaryProfileRepository = missionaryProfileRepository;
         this.supporterProfileRepository = supporterProfileRepository;
         this.connectionRepository = connectionRepository;
+        this.commentLikeRepository = commentLikeRepository;
     }
 
     @PostMapping
@@ -83,7 +88,7 @@ public class CommentController {
             }
 
             Comment savedComment = commentRepository.save(comment);
-            return ResponseEntity.ok(convertToDTO(savedComment));
+            return ResponseEntity.ok(convertToDTO(savedComment, user));
         } catch (UnauthenticatedException _) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         } catch (ResourceNotFoundException e) {
@@ -97,11 +102,13 @@ public class CommentController {
 
     @GetMapping
     @Transactional(readOnly = true)
-    public ResponseEntity<List<CommentDTO>> getComments(@PathVariable UUID postId) {
+    public ResponseEntity<List<CommentDTO>> getComments(@PathVariable UUID postId,
+                                                        Authentication authentication) {
         try {
+            User currentUser = authentication != null && authentication.isAuthenticated() ? getCurrentUser(authentication) : null;
             List<Comment> comments = commentRepository.findAllByPostIdOrderByCreatedAtAsc(postId);
             List<CommentDTO> commentDTOs = comments.stream()
-                    .map(this::convertToDTO)
+                    .map(c -> convertToDTO(c, currentUser))
                     .collect(Collectors.toList());
             return ResponseEntity.ok(commentDTOs);
         } catch (Throwable t) {
@@ -119,7 +126,7 @@ public class CommentController {
         try {
             User user = getCurrentUser(authentication);
             Comment comment = commentRepository.findById(commentId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Comment not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException(COMMENT_NOT_FOUND));
 
             if (!comment.getPost().getId().equals(postId)) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(java.util.Map.of(ERROR_KEY, "Comment does not belong to this post."));
@@ -138,7 +145,7 @@ public class CommentController {
             comment.setEdited(true);
             comment.setUpdatedAt(OffsetDateTime.now());
             Comment savedComment = commentRepository.save(comment);
-            return ResponseEntity.ok(convertToDTO(savedComment));
+            return ResponseEntity.ok(convertToDTO(savedComment, user));
         } catch (UnauthenticatedException _) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         } catch (ResourceNotFoundException _) {
@@ -157,7 +164,7 @@ public class CommentController {
         try {
             User user = getCurrentUser(authentication);
             Comment comment = commentRepository.findById(commentId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Comment not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException(COMMENT_NOT_FOUND));
 
             if (!comment.getPost().getId().equals(postId)) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(java.util.Map.of(ERROR_KEY, "Comment does not belong to this post."));
@@ -177,7 +184,7 @@ public class CommentController {
                 return ResponseEntity.noContent().build();
             }
 
-            return ResponseEntity.ok(convertToDTO(comment));
+            return ResponseEntity.ok(convertToDTO(comment, user));
         } catch (UnauthenticatedException _) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         } catch (ResourceNotFoundException _) {
@@ -241,7 +248,52 @@ public class CommentController {
         return usefulIds;
     }
 
-    private CommentDTO convertToDTO(Comment comment) {
+    @PostMapping("/{commentId}/like")
+    @Transactional
+    public ResponseEntity<CommentDTO> toggleLike(@PathVariable UUID postId,
+                                                 @PathVariable UUID commentId,
+                                                 Authentication authentication) {
+        try {
+            User currentUser = getCurrentUser(authentication);
+            Comment comment = commentRepository.findById(commentId)
+                    .orElseThrow(() -> new ResourceNotFoundException(COMMENT_NOT_FOUND));
+
+            if (!comment.getPost().getId().equals(postId)) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            }
+
+            CommentLikeId likeId = new CommentLikeId();
+            likeId.setCommentId(commentId);
+            likeId.setUserId(currentUser.getId());
+
+            if (commentLikeRepository.existsByCommentIdAndUserId(commentId, currentUser.getId())) {
+                commentLikeRepository.findById(likeId).ifPresent(commentLikeRepository::delete);
+            } else {
+                CommentLike like = new CommentLike();
+                like.setId(likeId);
+                like.setComment(comment);
+                like.setUser(currentUser);
+                like.setCreatedAt(OffsetDateTime.now());
+                commentLikeRepository.save(like);
+            }
+
+            return ResponseEntity.ok(convertToDTO(comment, currentUser));
+        } catch (UnauthenticatedException _) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        } catch (ResourceNotFoundException _) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Throwable t) {
+            logger.error("CRITICAL ERROR toggling comment like", t);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    private CommentDTO convertToDTO(Comment comment, User currentUser) {
+        UUID commentId = comment.getId();
+        long likeCount = commentLikeRepository.countByCommentId(commentId);
+        boolean liked = currentUser != null && commentLikeRepository.existsByCommentIdAndUserId(commentId, currentUser.getId());
+        String lastLikerName = resolveLastLikerName(commentId, currentUser);
+
         return CommentDTO.builder()
                 .id(comment.getId())
                 .postId(comment.getPost().getId())
@@ -253,7 +305,38 @@ public class CommentController {
                 .updatedAt(comment.getUpdatedAt())
                 .edited(comment.getEdited())
                 .isDeleted(comment.getIsDeleted())
+                .likeCount(likeCount)
+                .liked(liked)
+                .lastLikerName(lastLikerName)
                 .build();
+    }
+
+    private String resolveLastLikerName(UUID commentId, User currentUser) {
+        List<CommentLike> latestLikes = commentLikeRepository.findLatestLikes(commentId, PageRequest.of(0, 1));
+        if (latestLikes.isEmpty()) {
+            return null;
+        }
+
+        CommentLike lastLike = latestLikes.getFirst();
+        if (currentUser != null && lastLike.getUser().getId().equals(currentUser.getId())) {
+            return "you";
+        }
+
+        return getUserDisplayName(lastLike.getUser());
+    }
+
+    private String getUserDisplayName(User user) {
+        if (user.getRole() == Role.MISSIONARY) {
+            return missionaryProfileRepository.findById(user.getId()).filter(mp -> (mp.getMissionaryName() != null && !mp.getMissionaryName().isEmpty())).map(MissionaryProfile::getMissionaryName).orElse(user.getEmail());
+        } else if (user.getRole() == Role.SUPPORTER) {
+            return supporterProfileRepository.findById(user.getId())
+                    .map(sp -> {
+                        String name = ((sp.getFirstName() != null ? sp.getFirstName() : "") + " " + (sp.getLastName() != null ? sp.getLastName() : "")).trim();
+                        return name.isEmpty() ? user.getEmail() : name;
+                    })
+                    .orElse(user.getEmail());
+        }
+        return user.getEmail();
     }
 
     private String getUserName(User user) {

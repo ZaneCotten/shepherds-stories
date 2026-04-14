@@ -4,16 +4,17 @@ import com.shepherdsstories.config.UserAuthConfig;
 import com.shepherdsstories.data.enums.RequestStatus;
 import com.shepherdsstories.data.enums.Role;
 import com.shepherdsstories.data.repositories.MissionaryProfileRepository;
+import com.shepherdsstories.data.repositories.PostLikeRepository;
 import com.shepherdsstories.data.repositories.PostRepository;
+import com.shepherdsstories.data.repositories.SupporterProfileRepository;
 import com.shepherdsstories.data.repositories.UserRepository;
 import com.shepherdsstories.dtos.PostDTO;
-import com.shepherdsstories.entities.MissionaryProfile;
-import com.shepherdsstories.entities.Post;
-import com.shepherdsstories.entities.User;
+import com.shepherdsstories.entities.*;
 import com.shepherdsstories.exceptions.ResourceNotFoundException;
 import com.shepherdsstories.exceptions.UnauthenticatedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -32,14 +33,20 @@ public class PostController {
 
     private final PostRepository postRepository;
     private final MissionaryProfileRepository missionaryProfileRepository;
+    private final SupporterProfileRepository supporterProfileRepository;
     private final UserRepository userRepository;
+    private final PostLikeRepository postLikeRepository;
 
     public PostController(PostRepository postRepository,
                           MissionaryProfileRepository missionaryProfileRepository,
-                          UserRepository userRepository) {
+                          SupporterProfileRepository supporterProfileRepository,
+                          UserRepository userRepository,
+                          PostLikeRepository postLikeRepository) {
         this.postRepository = postRepository;
         this.missionaryProfileRepository = missionaryProfileRepository;
+        this.supporterProfileRepository = supporterProfileRepository;
         this.userRepository = userRepository;
+        this.postLikeRepository = postLikeRepository;
     }
 
     @PostMapping
@@ -62,7 +69,7 @@ public class PostController {
             post.setUpdatedAt(OffsetDateTime.now());
 
             Post savedPost = postRepository.save(post);
-            return ResponseEntity.ok(convertToDTO(savedPost));
+            return ResponseEntity.ok(convertToDTO(savedPost, user));
         } catch (UnauthenticatedException _) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         } catch (ResourceNotFoundException _) {
@@ -83,7 +90,7 @@ public class PostController {
             }
 
             List<Post> posts = postRepository.findAllByAuthorIdWithAuthor(user.getId());
-            List<PostDTO> postDTOs = posts.stream().map(this::convertToDTO).collect(Collectors.toList());
+            List<PostDTO> postDTOs = posts.stream().map(p -> convertToDTO(p, user)).collect(Collectors.toList());
             return ResponseEntity.ok(postDTOs);
         } catch (UnauthenticatedException _) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -105,7 +112,7 @@ public class PostController {
             List<Post> posts = postRepository.findAllForSupporter(user.getId(), RequestStatus.APPROVED);
             logger.info("Found {} posts for user {}", posts.size(), user.getEmail());
 
-            List<PostDTO> postDTOs = posts.stream().map(this::convertToDTO).collect(Collectors.toList());
+            List<PostDTO> postDTOs = posts.stream().map(p -> convertToDTO(p, user)).collect(Collectors.toList());
             return ResponseEntity.ok(postDTOs);
         } catch (UnauthenticatedException _) {
             logger.warn("Unauthenticated access to /feed");
@@ -136,7 +143,7 @@ public class PostController {
             post.setUpdatedAt(OffsetDateTime.now());
 
             Post updatedPost = postRepository.save(post);
-            return ResponseEntity.ok(convertToDTO(updatedPost));
+            return ResponseEntity.ok(convertToDTO(updatedPost, user));
         } catch (UnauthenticatedException _) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         } catch (ResourceNotFoundException _) {
@@ -147,7 +154,46 @@ public class PostController {
         }
     }
 
-    private PostDTO convertToDTO(Post post) {
+    @PostMapping("/{id}/like")
+    @Transactional
+    public ResponseEntity<PostDTO> toggleLike(@PathVariable UUID id, Authentication authentication) {
+        try {
+            User user = getCurrentUser(authentication);
+            Post post = postRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
+
+            PostLikeId likeId = new PostLikeId();
+            likeId.setPostId(post.getId());
+            likeId.setUserId(user.getId());
+
+            if (postLikeRepository.existsById(likeId)) {
+                postLikeRepository.deleteById(likeId);
+            } else {
+                PostLike like = new PostLike();
+                like.setId(likeId);
+                like.setPost(post);
+                like.setUser(user);
+                like.setCreatedAt(OffsetDateTime.now());
+                postLikeRepository.save(like);
+            }
+
+            return ResponseEntity.ok(convertToDTO(post, user));
+        } catch (UnauthenticatedException _) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        } catch (ResourceNotFoundException _) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Throwable t) {
+            logger.error("CRITICAL ERROR toggling like", t);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    private PostDTO convertToDTO(Post post, User currentUser) {
+        long likeCount = postLikeRepository.countByPostId(post.getId());
+        boolean liked = currentUser != null && postLikeRepository.existsByPostIdAndUserId(post.getId(), currentUser.getId());
+
+        String lastLikerName = resolveLastLikerName(post.getId(), currentUser);
+
         return PostDTO.builder()
                 .id(post.getId())
                 .title(post.getTitle())
@@ -156,7 +202,43 @@ public class PostController {
                 .authorName(post.getAuthor().getMissionaryName())
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
+                .likeCount(likeCount)
+                .liked(liked)
+                .lastLikerName(lastLikerName)
                 .build();
+    }
+
+    private String resolveLastLikerName(UUID postId, User currentUser) {
+        List<PostLike> latestLikes = postLikeRepository.findLatestLikes(postId, PageRequest.of(0, 5));
+        if (latestLikes.isEmpty()) {
+            return null;
+        }
+
+        User lastLiker = latestLikes.get(0).getUser();
+        if (currentUser != null && lastLiker.getId().equals(currentUser.getId())) {
+            return "you";
+        }
+
+        return getUserDisplayName(lastLiker);
+    }
+
+    private String getUserDisplayName(User user) {
+        if (user.getRole() == Role.MISSIONARY) {
+            return missionaryProfileRepository.findById(user.getId())
+                    .map(mp -> {
+                        String name = mp.getMissionaryName().trim();
+                        return name.isEmpty() ? user.getEmail() : name;
+                    })
+                    .orElse(user.getEmail());
+        } else if (user.getRole() == Role.SUPPORTER) {
+            return supporterProfileRepository.findById(user.getId())
+                    .map(sp -> {
+                        String name = (sp.getFirstName() + " " + sp.getLastName()).trim();
+                        return name.isEmpty() ? user.getEmail() : name;
+                    })
+                    .orElse(user.getEmail());
+        }
+        return user.getEmail();
     }
 
     private User getCurrentUser(Authentication authentication) {

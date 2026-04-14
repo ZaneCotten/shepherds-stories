@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -20,8 +21,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
@@ -46,6 +46,9 @@ class CommentControllerTest {
 
     @Mock
     private ConnectionRepository connectionRepository;
+
+    @Mock
+    private CommentLikeRepository commentLikeRepository;
 
     @InjectMocks
     private CommentController controller;
@@ -249,8 +252,9 @@ class CommentControllerTest {
         comment.setCreatedAt(OffsetDateTime.now());
 
         when(commentRepository.findAllByPostIdOrderByCreatedAtAsc(post.getId())).thenReturn(List.of(comment));
+        when(commentLikeRepository.countByCommentId(any(UUID.class))).thenReturn(0L);
 
-        ResponseEntity<List<CommentDTO>> response = controller.getComments(post.getId());
+        ResponseEntity<List<CommentDTO>> response = controller.getComments(post.getId(), supporterAuth);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         List<CommentDTO> responseBody = response.getBody();
@@ -450,5 +454,58 @@ class CommentControllerTest {
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
         // Both parent and child should be deleted
         verify(commentRepository).deleteAll(anyList());
+    }
+
+    @Test
+    void toggleLike_Success() {
+        UUID commentId = UUID.randomUUID();
+        Comment comment = new Comment();
+        comment.setId(commentId);
+        comment.setPost(post);
+        comment.setUser(missionaryUser);
+
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+        when(commentLikeRepository.existsByCommentIdAndUserId(commentId, missionaryUser.getId())).thenReturn(false, true);
+        when(commentLikeRepository.countByCommentId(commentId)).thenReturn(1L);
+        when(commentLikeRepository.findLatestLikes(eq(commentId), any(PageRequest.class))).thenReturn(List.of());
+
+        ResponseEntity<?> response = controller.toggleLike(post.getId(), commentId, missionaryAuth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        CommentDTO responseDTO = (CommentDTO) response.getBody();
+        assert responseDTO != null;
+        assertTrue(responseDTO.isLiked());
+        assertEquals(1, responseDTO.getLikeCount());
+        verify(commentLikeRepository).save(any(CommentLike.class));
+    }
+
+    @Test
+    void toggleLike_UnlikeSuccess() {
+        UUID commentId = UUID.randomUUID();
+        Comment comment = new Comment();
+        comment.setId(commentId);
+        comment.setPost(post);
+        comment.setUser(missionaryUser);
+
+        CommentLike commentLike = new CommentLike();
+        CommentLikeId commentLikeId = new CommentLikeId();
+        commentLikeId.setCommentId(commentId);
+        commentLikeId.setUserId(missionaryUser.getId());
+        commentLike.setId(commentLikeId);
+
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+        when(commentLikeRepository.existsByCommentIdAndUserId(commentId, missionaryUser.getId())).thenReturn(true, false);
+        when(commentLikeRepository.findById(commentLikeId)).thenReturn(Optional.of(commentLike));
+        when(commentLikeRepository.countByCommentId(commentId)).thenReturn(0L);
+        when(commentLikeRepository.findLatestLikes(eq(commentId), any(PageRequest.class))).thenReturn(List.of());
+
+        ResponseEntity<?> response = controller.toggleLike(post.getId(), commentId, missionaryAuth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        CommentDTO responseDTO = (CommentDTO) response.getBody();
+        assert responseDTO != null;
+        assertFalse(responseDTO.isLiked());
+        assertEquals(0, responseDTO.getLikeCount());
+        verify(commentLikeRepository).delete(commentLike);
     }
 }
