@@ -1,4 +1,3 @@
-import {useNavigate} from "react-router-dom";
 import {useState} from "react";
 
 export const SupporterView = () => {
@@ -31,7 +30,7 @@ export const SupporterView = () => {
             } else {
                 setError("Missionary not found. Please check the code.");
             }
-        } catch (err) {
+        } catch {
             setError("Failed to send connection request.");
         }
     };

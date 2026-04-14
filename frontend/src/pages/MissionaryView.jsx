@@ -39,7 +39,7 @@ export const MissionaryView = () => {
             } else {
                 alert("Failed to process request.");
             }
-        } catch (err) {
+        } catch {
             alert("Error responding to request.");
         }
     };
