@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -40,6 +41,7 @@ class OAuth2LoginTest {
     void onAuthenticationSuccess_ExistingUser_RedirectsToCallback() throws Exception {
         String email = "existing@example.com";
         User user = new User();
+        user.setId(UUID.randomUUID());
         user.setEmail(email);
         user.setRole(Role.MISSIONARY);
 
@@ -70,12 +72,14 @@ class OAuth2LoginTest {
         assertTrue(redirectedUrl.contains("/oauth/callback"), "URL should contain /oauth/callback, but was: " + redirectedUrl);
         assertTrue(redirectedUrl.contains("username=" + email), "URL should contain username=" + email);
         assertTrue(redirectedUrl.contains("role=MISSIONARY"), "URL should contain role=MISSIONARY");
+        assertTrue(redirectedUrl.contains("id=" + user.getId().toString()), "URL should contain id=" + user.getId());
     }
 
     @Test
     void onAuthenticationSuccess_ExistingSupporter_RedirectsToCallback() throws Exception {
         String email = "supporter@example.com";
         User user = new User();
+        user.setId(UUID.randomUUID());
         user.setEmail(email);
         user.setRole(Role.SUPPORTER);
 
@@ -104,6 +108,7 @@ class OAuth2LoginTest {
         assertTrue(redirectedUrl.contains("/oauth/callback"), "URL should contain /oauth/callback");
         assertTrue(redirectedUrl.contains("username=" + email), "URL should contain username=" + email);
         assertTrue(redirectedUrl.contains("role=SUPPORTER"), "URL should contain role=SUPPORTER");
+        assertTrue(redirectedUrl.contains("id=" + user.getId().toString()), "URL should contain id=" + user.getId());
     }
 
     @Test

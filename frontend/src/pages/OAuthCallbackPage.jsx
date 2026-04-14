@@ -8,10 +8,11 @@ const OAuthCallbackPage = ({onLogin}) => {
     useEffect(() => {
         const username = (searchParams.get("username") || "").trim();
         const role = (searchParams.get("role") || "").trim();
+        const id = (searchParams.get("id") || "").trim();
         const normalizedRole = role.replace("ROLE_", "").trim().toUpperCase();
 
         if (normalizedRole === "MISSIONARY" || normalizedRole === "SUPPORTER") {
-            const userData = {username, role: normalizedRole};
+            const userData = {username, role: normalizedRole, id};
             localStorage.setItem("user", JSON.stringify(userData));
             // Full page reload ensures App.jsx initializes from localStorage correctly
             window.location.replace(normalizedRole === "MISSIONARY" ? "/missionary" : "/supporter");

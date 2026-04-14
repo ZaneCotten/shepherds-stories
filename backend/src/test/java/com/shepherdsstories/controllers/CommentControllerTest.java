@@ -1,10 +1,10 @@
 package com.shepherdsstories.controllers;
 
+import com.shepherdsstories.data.enums.RequestStatus;
 import com.shepherdsstories.data.enums.Role;
 import com.shepherdsstories.data.repositories.*;
 import com.shepherdsstories.dtos.CommentDTO;
 import com.shepherdsstories.entities.*;
-import com.shepherdsstories.exceptions.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +21,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -51,7 +52,6 @@ class CommentControllerTest {
     private User missionaryUser;
     private MissionaryProfile missionaryProfile;
     private User supporterUser;
-    private SupporterProfile supporterProfile;
     private Post post;
     private Authentication missionaryAuth;
     private Authentication supporterAuth;
@@ -73,7 +73,7 @@ class CommentControllerTest {
         supporterUser.setEmail("supporter@test.com");
         supporterUser.setRole(Role.SUPPORTER);
 
-        supporterProfile = new SupporterProfile();
+        SupporterProfile supporterProfile = new SupporterProfile();
         supporterProfile.setId(supporterUser.getId());
         supporterProfile.setUser(supporterUser);
         supporterProfile.setFirstName("John");
@@ -109,15 +109,16 @@ class CommentControllerTest {
         savedComment.setPost(post);
         savedComment.setUser(missionaryUser);
         savedComment.setContent(commentDTO.getContent());
-        savedComment.setCreatedAt(OffsetDateTime.now());
 
         when(commentRepository.save(any(Comment.class))).thenReturn(savedComment);
 
-        ResponseEntity<CommentDTO> response = controller.addComment(post.getId(), commentDTO, missionaryAuth);
+        ResponseEntity<?> response = controller.addComment(post.getId(), commentDTO, missionaryAuth);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("Missionary comment", response.getBody().getContent());
-        assertEquals("Test Missionary", response.getBody().getUserName());
+        CommentDTO responseBody = (CommentDTO) response.getBody();
+        assert responseBody != null;
+        assertEquals("Missionary comment", responseBody.getContent());
+        assertEquals("Test Missionary", responseBody.getUserName());
     }
 
     @Test
@@ -134,13 +135,15 @@ class CommentControllerTest {
         savedComment.setCreatedAt(OffsetDateTime.now());
 
         when(commentRepository.save(any(Comment.class))).thenReturn(savedComment);
-        when(connectionRepository.existsByMissionaryIdAndSupporterId(missionaryProfile.getId(), supporterUser.getId())).thenReturn(true);
+        when(connectionRepository.existsByMissionaryIdAndSupporterIdAndStatus(missionaryProfile.getId(), supporterUser.getId(), RequestStatus.APPROVED)).thenReturn(true);
 
-        ResponseEntity<CommentDTO> response = controller.addComment(post.getId(), commentDTO, supporterAuth);
+        ResponseEntity<?> response = controller.addComment(post.getId(), commentDTO, supporterAuth);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("Supporter comment", response.getBody().getContent());
-        assertEquals("John Doe", response.getBody().getUserName());
+        CommentDTO responseBody = (CommentDTO) response.getBody();
+        assert responseBody != null;
+        assertEquals("Supporter comment", responseBody.getContent());
+        assertEquals("John Doe", responseBody.getUserName());
     }
 
     @Test
@@ -149,7 +152,7 @@ class CommentControllerTest {
         UUID fakePostId = UUID.randomUUID();
         when(postRepository.findById(fakePostId)).thenReturn(Optional.empty());
 
-        ResponseEntity<CommentDTO> response = controller.addComment(fakePostId, commentDTO, supporterAuth);
+        ResponseEntity<?> response = controller.addComment(fakePostId, commentDTO, supporterAuth);
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
     }
@@ -157,9 +160,9 @@ class CommentControllerTest {
     @Test
     void addComment_SupporterForbidden() {
         CommentDTO commentDTO = CommentDTO.builder().content("No permission").build();
-        when(connectionRepository.existsByMissionaryIdAndSupporterId(missionaryProfile.getId(), supporterUser.getId())).thenReturn(false);
+        when(connectionRepository.existsByMissionaryIdAndSupporterIdAndStatus(missionaryProfile.getId(), supporterUser.getId(), RequestStatus.APPROVED)).thenReturn(false);
 
-        ResponseEntity<CommentDTO> response = controller.addComment(post.getId(), commentDTO, supporterAuth);
+        ResponseEntity<?> response = controller.addComment(post.getId(), commentDTO, supporterAuth);
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
     }
@@ -178,8 +181,103 @@ class CommentControllerTest {
         ResponseEntity<List<CommentDTO>> response = controller.getComments(post.getId());
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(1, response.getBody().size());
-        assertEquals("Hello", response.getBody().get(0).getContent());
-        assertEquals("John Doe", response.getBody().get(0).getUserName());
+        List<CommentDTO> responseBody = response.getBody();
+        assert responseBody != null;
+        assertEquals(1, responseBody.size());
+        assertEquals("Hello", responseBody.getFirst().getContent());
+        assertEquals("John Doe", responseBody.getFirst().getUserName());
+    }
+
+    @Test
+    void updateComment_Success() {
+        UUID commentId = UUID.randomUUID();
+        Comment comment = new Comment();
+        comment.setId(commentId);
+        comment.setPost(post);
+        comment.setUser(missionaryUser);
+        comment.setContent("Old content");
+
+        CommentDTO updateDTO = CommentDTO.builder().content("New content").build();
+
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+        when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ResponseEntity<?> response = controller.updateComment(post.getId(), commentId, updateDTO, missionaryAuth);
+        CommentDTO responseDTO = (CommentDTO) response.getBody();
+        assert responseDTO != null;
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("New content", responseDTO.getContent());
+        assertTrue(responseDTO.getEdited());
+        org.junit.jupiter.api.Assertions.assertNotNull(responseDTO.getUpdatedAt());
+    }
+
+    @Test
+    void updateComment_Forbidden() {
+        UUID commentId = UUID.randomUUID();
+        Comment comment = new Comment();
+        comment.setId(commentId);
+        comment.setPost(post);
+        comment.setUser(missionaryUser);
+        comment.setContent("Old content");
+
+        CommentDTO updateDTO = CommentDTO.builder().content("New content").build();
+
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+
+        // Attempting to update missionary's comment as a supporter
+        ResponseEntity<?> response = controller.updateComment(post.getId(), commentId, updateDTO, supporterAuth);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+    }
+
+    @Test
+    void updateComment_PostIdMismatch() {
+        UUID commentId = UUID.randomUUID();
+        Comment comment = new Comment();
+        comment.setId(commentId);
+        comment.setPost(post);
+        comment.setUser(missionaryUser);
+
+        CommentDTO updateDTO = CommentDTO.builder().content("New content").build();
+
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+
+        ResponseEntity<?> response = controller.updateComment(UUID.randomUUID(), commentId, updateDTO, missionaryAuth);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void deleteComment_Success() {
+        UUID commentId = UUID.randomUUID();
+        Comment comment = new Comment();
+        comment.setId(commentId);
+        comment.setPost(post);
+        comment.setUser(missionaryUser);
+
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+
+        ResponseEntity<?> response = controller.deleteComment(post.getId(), commentId, missionaryAuth);
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        verify(commentRepository).delete(comment);
+    }
+
+    @Test
+    void deleteComment_Forbidden() {
+        UUID commentId = UUID.randomUUID();
+        Comment comment = new Comment();
+        comment.setId(commentId);
+        comment.setPost(post);
+        comment.setUser(missionaryUser);
+
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+
+        // Attempting to delete missionary's comment as a supporter
+        ResponseEntity<?> response = controller.deleteComment(post.getId(), commentId, supporterAuth);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        verify(commentRepository, never()).delete(any());
     }
 }

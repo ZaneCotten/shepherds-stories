@@ -5,6 +5,7 @@ import com.shepherdsstories.data.enums.Role;
 import com.shepherdsstories.data.repositories.UserRepository;
 import com.shepherdsstories.data.records.RegistrationRequest;
 import com.shepherdsstories.dtos.RegistrationRequestDTO;
+import com.shepherdsstories.entities.User;
 import com.shepherdsstories.services.RegistrationService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -22,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/auth")
 public class RegistrationController {
-
+    private static final String ERROR_KEY = "error";
     private final UserRepository userRepository;
 
     private final RegistrationService registrationService;
@@ -67,16 +68,23 @@ public class RegistrationController {
 
     @PostMapping("/register")
     @Transactional
-    public ResponseEntity<String> register(@Valid @RequestBody RegistrationRequestDTO request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
+    public ResponseEntity<java.util.Map<String, Object>> register(@Valid @RequestBody RegistrationRequestDTO request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         String normalizedEmail = normalizeEmail(request.getEmail());
         request.setEmail(normalizedEmail);
         if (userRepository.findByEmailIgnoreCase(normalizedEmail).isPresent()) {
-            return ResponseEntity.badRequest().body("User already exists");
+            return ResponseEntity.badRequest().body(java.util.Map.of(ERROR_KEY, "User already exists"));
         }
 
         registrationService.register(request);
         authenticateUser(request.getEmail(), request.getRole().name(), httpRequest, httpResponse);
-        return ResponseEntity.ok("User registered successfully");
+
+        User user = userRepository.findByEmailIgnoreCase(normalizedEmail).orElseThrow();
+        return ResponseEntity.ok(java.util.Map.of(
+                "message", "User registered successfully",
+                "id", user.getId(),
+                "username", user.getEmail(),
+                "role", user.getRole().name()
+        ));
     }
 
     private void authenticateUser(String email, String role, HttpServletRequest request, HttpServletResponse response) {
@@ -92,35 +100,35 @@ public class RegistrationController {
 
     @PostMapping("/register-social")
     @Transactional
-    public ResponseEntity<String> registerSocialUser(@RequestBody RegistrationRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
+    public ResponseEntity<java.util.Map<String, Object>> registerSocialUser(@RequestBody RegistrationRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         String email = normalizeEmail(request.email());
         if (email == null || email.isBlank()) {
-            return ResponseEntity.badRequest().body("Email is required");
+            return ResponseEntity.badRequest().body(java.util.Map.of(ERROR_KEY, "Email is required"));
         }
 
         if (request.role() == null || request.role().isBlank()) {
-            return ResponseEntity.badRequest().body("Role is required");
+            return ResponseEntity.badRequest().body(java.util.Map.of(ERROR_KEY, "Role is required"));
         }
 
         Role role;
         try {
             role = Role.valueOf(request.role().toUpperCase());
         } catch (IllegalArgumentException _) {
-            return ResponseEntity.badRequest().body("Invalid role");
+            return ResponseEntity.badRequest().body(java.util.Map.of(ERROR_KEY, "Invalid role"));
         }
 
         if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
-            return ResponseEntity.badRequest().body("User already exists");
+            return ResponseEntity.badRequest().body(java.util.Map.of(ERROR_KEY, "User already exists"));
         }
 
         if (request.authProvider() == null || request.authProvider().isBlank()) {
-            return ResponseEntity.badRequest().body("OAuth provider is required");
+            return ResponseEntity.badRequest().body(java.util.Map.of(ERROR_KEY, "OAuth provider is required"));
         }
         AuthProvider provider;
         try {
             provider = AuthProvider.valueOf(request.authProvider().toUpperCase());
         } catch (IllegalArgumentException _) {
-            return ResponseEntity.badRequest().body("Invalid OAuth provider");
+            return ResponseEntity.badRequest().body(java.util.Map.of(ERROR_KEY, "Invalid OAuth provider"));
         }
         String oauthId = provider.name() + ":" + email;
 
@@ -142,6 +150,12 @@ public class RegistrationController {
         registrationService.registerSocial(dto, oauthId, provider);
         authenticateUser(email, role.name(), httpRequest, httpResponse);
 
-        return ResponseEntity.ok("User registered successfully");
+        User user = userRepository.findByEmailIgnoreCase(email).orElseThrow();
+        return ResponseEntity.ok(java.util.Map.of(
+                "message", "User registered successfully",
+                "id", user.getId(),
+                "username", user.getEmail(),
+                "role", user.getRole().name()
+        ));
     }
 }

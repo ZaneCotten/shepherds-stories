@@ -1,5 +1,6 @@
 package com.shepherdsstories.controllers;
 
+import com.shepherdsstories.config.UserAuthConfig;
 import com.shepherdsstories.data.enums.RequestStatus;
 import com.shepherdsstories.data.repositories.ConnectionRepository;
 import com.shepherdsstories.data.repositories.InviteCodeRepository;
@@ -104,6 +105,11 @@ public class MissionaryProfileController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new UnauthenticatedException("Unauthenticated");
+        }
+
+        if (authentication.getPrincipal() instanceof UserAuthConfig.AppUserDetails details) {
+            return userRepository.findById(details.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found by ID: " + details.getId()));
         }
 
         String principalName = authentication.getName();

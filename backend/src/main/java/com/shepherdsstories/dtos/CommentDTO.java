@@ -20,4 +20,6 @@ public class CommentDTO {
     private String content;
     private UUID parentCommentId;
     private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
+    private Boolean edited;
 }

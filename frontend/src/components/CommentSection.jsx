@@ -5,6 +5,11 @@ export const CommentSection = ({postId}) => {
     const [newComment, setNewComment] = useState("");
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [editingCommentId, setEditingCommentId] = useState(null);
+    const [editContent, setEditContent] = useState("");
+
+    const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+    const currentUserId = currentUser?.id || currentUser?.userId; // Handle both potential field names
 
     useEffect(() => {
         fetch(`/api/posts/${postId}/comments`)
@@ -41,13 +46,61 @@ export const CommentSection = ({postId}) => {
                 setComments([...comments, data]);
                 setNewComment("");
             } else {
-                alert("Failed to add comment.");
+                const errorData = await response.json().catch(() => ({}));
+                alert(errorData.error || "Failed to add comment.");
             }
         } catch (err) {
             alert("Error adding comment: " + err.message);
         } finally {
             setSubmitting(false);
         }
+    };
+
+    const handleUpdate = async (commentId) => {
+        if (!editContent.trim()) return;
+        try {
+            const response = await fetch(`/api/posts/${postId}/comments/${commentId}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({content: editContent})
+            });
+
+            if (response.ok) {
+                const updatedComment = await response.json();
+                setComments(comments.map(c => String(c.id) === String(commentId) ? updatedComment : c));
+                setEditingCommentId(null);
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                alert(errorData.error || "Failed to update comment.");
+            }
+        } catch (err) {
+            alert("Error updating comment: " + err.message);
+        }
+    };
+
+    const handleDelete = async (commentId) => {
+        if (!window.confirm("Are you sure you want to delete this comment?")) return;
+        try {
+            const response = await fetch(`/api/posts/${postId}/comments/${commentId}`, {
+                method: "DELETE"
+            });
+
+            if (response.ok) {
+                setComments(comments.filter(c => String(c.id) !== String(commentId)));
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                alert(errorData.error || "Failed to delete comment.");
+            }
+        } catch (err) {
+            alert("Error deleting comment: " + err.message);
+        }
+    };
+
+    const startEditing = (comment) => {
+        setEditingCommentId(comment.id);
+        setEditContent(comment.content);
     };
 
     return (
@@ -74,19 +127,104 @@ export const CommentSection = ({postId}) => {
                                     fontSize: "0.85rem",
                                     color: "var(--accent)"
                                 }}>{comment.userName}</span>
-                                <span style={{fontSize: "0.75rem", color: "var(--text-muted)"}}>
-                                    {new Date(comment.createdAt).toLocaleString([], {
-                                        dateStyle: 'short',
-                                        timeStyle: 'short'
-                                    })}
-                                </span>
+                                <div style={{display: "flex", alignItems: "center", gap: "8px"}}>
+                                    <span style={{fontSize: "0.75rem", color: "var(--text-muted)"}}>
+                                        {new Date(comment.createdAt).toLocaleString([], {
+                                            dateStyle: 'short',
+                                            timeStyle: 'short'
+                                        })}
+                                        {comment.edited && (
+                                            <span style={{fontStyle: 'italic', marginLeft: '4px'}}
+                                                  title={`Updated at: ${new Date(comment.updatedAt).toLocaleString()}`}>
+                                                (edited)
+                                            </span>
+                                        )}
+                                    </span>
+                                    {String(comment.userId) === String(currentUserId) && editingCommentId !== comment.id && (
+                                        <div style={{display: "flex", gap: "5px"}}>
+                                            <button
+                                                onClick={() => startEditing(comment)}
+                                                style={{
+                                                    background: "none",
+                                                    border: "none",
+                                                    color: "var(--accent)",
+                                                    fontSize: "0.7rem",
+                                                    cursor: "pointer",
+                                                    padding: 0
+                                                }}
+                                            >Edit
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(comment.id)}
+                                                style={{
+                                                    background: "none",
+                                                    border: "none",
+                                                    color: "red",
+                                                    fontSize: "0.7rem",
+                                                    cursor: "pointer",
+                                                    padding: 0
+                                                }}
+                                            >Delete
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                            <p style={{
-                                margin: 0,
-                                fontSize: "0.9rem",
-                                color: "var(--text)",
-                                whiteSpace: "pre-wrap"
-                            }}>{comment.content}</p>
+
+                            {editingCommentId === comment.id ? (
+                                <div style={{display: "flex", flexDirection: "column", gap: "5px"}}>
+                                    <textarea
+                                        value={editContent}
+                                        onChange={(e) => setEditContent(e.target.value)}
+                                        style={{
+                                            width: "100%",
+                                            padding: "5px",
+                                            borderRadius: "4px",
+                                            border: "1px solid var(--border-input)",
+                                            backgroundColor: "var(--bg-card)",
+                                            color: "var(--text)",
+                                            fontSize: "0.9rem",
+                                            minHeight: "50px",
+                                            resize: "vertical"
+                                        }}
+                                    />
+                                    <div style={{display: "flex", gap: "5px"}}>
+                                        <button
+                                            onClick={() => handleUpdate(comment.id)}
+                                            style={{
+                                                padding: "2px 8px",
+                                                borderRadius: "4px",
+                                                backgroundColor: "var(--accent-primary)",
+                                                color: "white",
+                                                border: "none",
+                                                fontSize: "0.75rem",
+                                                cursor: "pointer"
+                                            }}
+                                        >Save
+                                        </button>
+                                        <button
+                                            onClick={() => setEditingCommentId(null)}
+                                            style={{
+                                                padding: "2px 8px",
+                                                borderRadius: "4px",
+                                                backgroundColor: "var(--bg-input)",
+                                                color: "var(--text)",
+                                                border: "1px solid var(--border-input)",
+                                                fontSize: "0.75rem",
+                                                cursor: "pointer"
+                                            }}
+                                        >Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p style={{
+                                    margin: 0,
+                                    fontSize: "0.9rem",
+                                    color: "var(--text)",
+                                    whiteSpace: "pre-wrap"
+                                }}>{comment.content}</p>
+                            )}
                         </div>
                     ))}
                 </div>

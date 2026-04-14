@@ -40,7 +40,7 @@ class FormLoginTest {
         assertEquals(200, response.getStatus());
         assertEquals("application/json", response.getContentType());
         String content = response.getContentAsString();
-        assertEquals(String.format("{\"username\":\"%s\",\"role\":\"MISSIONARY\"}", email), content);
+        assertEquals(String.format("{\"username\":\"%s\",\"id\":\"\",\"role\":\"MISSIONARY\"}", email), content);
     }
 
     @Test
@@ -58,7 +58,7 @@ class FormLoginTest {
         assertEquals(200, response.getStatus());
         assertEquals("application/json", response.getContentType());
         String content = response.getContentAsString();
-        assertEquals(String.format("{\"username\":\"%s\",\"role\":\"SUPPORTER\"}", email), content);
+        assertEquals(String.format("{\"username\":\"%s\",\"id\":\"\",\"role\":\"SUPPORTER\"}", email), content);
     }
 
     @Test
@@ -75,7 +75,7 @@ class FormLoginTest {
         assertEquals(200, response.getStatus());
         assertEquals("application/json", response.getContentType());
         String content = response.getContentAsString();
-        assertEquals(String.format("{\"username\":\"%s\",\"role\":\"NO ROLE FOUND\"}", email), content);
+        assertEquals(String.format("{\"username\":\"%s\",\"id\":\"\",\"role\":\"NO ROLE FOUND\"}", email), content);
     }
 
     @Test

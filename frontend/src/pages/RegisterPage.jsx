@@ -47,10 +47,11 @@ const RegisterPage = ({onLogin}) => {
         };
 
         try {
-            await axios.post("/api/auth/register", registrationDto);
+            const response = await axios.post("/api/auth/register", registrationDto);
             const userData = {
-                username: registrationDto.email.toLowerCase(),
-                role: registrationDto.role
+                id: response.data.id,
+                username: response.data.username,
+                role: response.data.role
             };
             localStorage.setItem("user", JSON.stringify(userData));
             onLogin(userData);
