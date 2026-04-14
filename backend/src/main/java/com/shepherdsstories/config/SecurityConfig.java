@@ -29,16 +29,21 @@ import static org.springframework.security.config.Customizer.withDefaults;
 public class SecurityConfig {
     private static String successBody(Authentication authentication) {
         String username = authentication.getName();
+        String id = "";
+
+        if (authentication.getPrincipal() instanceof UserAuthConfig.AppUserDetails userDetails) {
+            id = userDetails.getId().toString();
+        }
 
         if (authentication.getAuthorities().isEmpty()) {
-            return String.format("{\"username\":\"%s\",\"role\":\"NO ROLE FOUND\"}", username);
+            return String.format("{\"username\":\"%s\",\"id\":\"%s\",\"role\":\"NO ROLE FOUND\"}", username, id);
         }
         String role = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .filter(Objects::nonNull)
                 .findFirst()
                 .orElse("");
-        return String.format("{\"username\":\"%s\",\"role\":\"%s\"}", username, role);
+        return String.format("{\"username\":\"%s\",\"id\":\"%s\",\"role\":\"%s\"}", username, id, role);
 
     }
 
@@ -113,8 +118,8 @@ public class SecurityConfig {
             } else {
                 User user = userOptional.get();
                 String role = user.getRole().name();
-                String url = String.format("http://localhost:5173/oauth/callback?username=%s&role=%s",
-                        encode(normalizedEmail), encode(role));
+                String url = String.format("http://localhost:5173/oauth/callback?username=%s&role=%s&id=%s",
+                        encode(normalizedEmail), encode(role), encode(user.getId().toString()));
                 response.sendRedirect(url);
             }
         };

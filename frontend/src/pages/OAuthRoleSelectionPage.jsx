@@ -24,7 +24,7 @@ const OAuthRoleSelectionPage = ({onLogin}) => {
         setIsLoading(true);
 
         try {
-            await axios.post("/api/auth/register-social", {
+            const response = await axios.post("/api/auth/register-social", {
                 email,
                 role,
                 authProvider: provider,
@@ -33,11 +33,14 @@ const OAuthRoleSelectionPage = ({onLogin}) => {
                 lastName: familyName
             });
 
-            const normalizedRole = role.toUpperCase();
-            const userData = {username: email.toLowerCase(), role: normalizedRole};
+            const userData = {
+                id: response.data.id,
+                username: response.data.username,
+                role: response.data.role
+            };
             localStorage.setItem("user", JSON.stringify(userData));
             onLogin(userData);
-            navigate(normalizedRole === "MISSIONARY" ? "/missionary" : "/supporter", {replace: true});
+            navigate(userData.role === "MISSIONARY" ? "/missionary" : "/supporter", {replace: true});
         } catch (err) {
             const body = err.response?.data;
             const message = typeof body === "string"

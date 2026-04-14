@@ -1,5 +1,6 @@
 package com.shepherdsstories.controllers;
 
+import com.shepherdsstories.config.UserAuthConfig;
 import com.shepherdsstories.data.enums.RequestStatus;
 import com.shepherdsstories.data.repositories.*;
 import com.shepherdsstories.entities.*;
@@ -135,6 +136,15 @@ public class SupporterController {
     }
 
     private User getCurrentUser(org.springframework.security.core.Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new com.shepherdsstories.exceptions.UnauthenticatedException("Unauthenticated");
+        }
+
+        if (authentication.getPrincipal() instanceof UserAuthConfig.AppUserDetails details) {
+            return userRepository.findById(details.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found by ID: " + details.getId()));
+        }
+
         String principalName = authentication.getName();
         String email = null;
 

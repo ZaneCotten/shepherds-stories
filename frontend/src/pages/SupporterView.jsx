@@ -1,4 +1,5 @@
 import {useState, useEffect} from "react";
+import {CommentSection} from "../components/CommentSection";
 
 export const SupporterView = () => {
     const [inviteCode, setInviteCode] = useState("");
@@ -181,6 +182,7 @@ export const SupporterView = () => {
                                     </p>
                                 </div>
                                 <p style={{color: "var(--text)", whiteSpace: "pre-wrap"}}>{post.content}</p>
+                                <CommentSection postId={post.id} postAuthorId={post.authorId}/>
                             </div>
                         ))}
                     </div>

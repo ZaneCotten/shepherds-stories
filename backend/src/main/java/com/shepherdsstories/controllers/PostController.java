@@ -1,10 +1,10 @@
 package com.shepherdsstories.controllers;
 
+import com.shepherdsstories.config.UserAuthConfig;
 import com.shepherdsstories.data.enums.RequestStatus;
 import com.shepherdsstories.data.enums.Role;
 import com.shepherdsstories.data.repositories.MissionaryProfileRepository;
 import com.shepherdsstories.data.repositories.PostRepository;
-import com.shepherdsstories.data.repositories.SupporterProfileRepository;
 import com.shepherdsstories.data.repositories.UserRepository;
 import com.shepherdsstories.dtos.PostDTO;
 import com.shepherdsstories.entities.MissionaryProfile;
@@ -163,6 +163,12 @@ public class PostController {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new UnauthenticatedException("Unauthenticated");
         }
+
+        if (authentication.getPrincipal() instanceof UserAuthConfig.AppUserDetails details) {
+            return userRepository.findById(details.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found by ID: " + details.getId()));
+        }
+
         String email = null;
         if (authentication instanceof org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken authToken) {
             org.springframework.security.oauth2.core.user.OAuth2User principal = authToken.getPrincipal();

@@ -18,5 +18,5 @@ public interface ConnectionRepository extends JpaRepository<ConnectionRequest, U
 
     Optional<ConnectionRequest> findByMissionaryIdAndSupporterId(UUID missionaryId, UUID supporterId);
 
-    boolean existsByMissionaryIdAndSupporterId(UUID missionaryId, UUID supporterId);
+    boolean existsByMissionaryIdAndSupporterIdAndStatus(UUID missionaryId, UUID supporterId, RequestStatus status);
 }

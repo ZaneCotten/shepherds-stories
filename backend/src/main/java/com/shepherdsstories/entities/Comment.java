@@ -3,6 +3,7 @@ package com.shepherdsstories.entities;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
@@ -40,8 +41,29 @@ public class Comment {
     @Column(name = "content", nullable = false, length = COMMENT_MAX_LENGTH)
     private String content;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    @Column(name = "updated_at", nullable = false)
+    private OffsetDateTime updatedAt;
 
+    @Column(name = "edited", nullable = false)
+    @ColumnDefault("false")
+    private Boolean edited = false;
+
+    @Column(name = "is_deleted", nullable = false)
+    @ColumnDefault("false")
+    private Boolean isDeleted = false;
+
+
+    @PrePersist
+    public void onCreate() {
+        this.createdAt = OffsetDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
+    }
+
+    @PreUpdate
+    public void onUpdate() {
+        this.updatedAt = OffsetDateTime.now();
+    }
 }
