@@ -1,4 +1,5 @@
 import {useEffect, useState} from "react";
+import {CommentSection} from "../components/CommentSection";
 
 export const MissionaryView = () => {
     const [profile, setProfile] = useState(null);
@@ -425,6 +426,7 @@ export const MissionaryView = () => {
                                     </button>
                                 </div>
                                 <p style={{color: "var(--text)", whiteSpace: "pre-wrap"}}>{post.content}</p>
+                                <CommentSection postId={post.id}/>
                             </div>
                         ))}
                     </div>
