@@ -76,6 +76,10 @@ public class CommentController {
             if (commentDTO.getParentCommentId() != null) {
                 Comment parentComment = commentRepository.findById(commentDTO.getParentCommentId())
                         .orElseThrow(() -> new ResourceNotFoundException("Parent comment not found"));
+                if (!parentComment.getPost().getId().equals(postId)) {
+                    logger.warn("User {} attempted to reply to comment {} which belongs to a different post", user.getEmail(), commentDTO.getParentCommentId());
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(java.util.Map.of(ERROR_KEY, "Parent comment does not belong to this post."));
+                }
                 comment.setParentComment(parentComment);
             }
 
@@ -96,7 +100,7 @@ public class CommentController {
     @Transactional(readOnly = true)
     public ResponseEntity<List<CommentDTO>> getComments(@PathVariable UUID postId) {
         try {
-            List<Comment> comments = commentRepository.findAllByPostId(postId);
+            List<Comment> comments = commentRepository.findAllByPostIdOrderByCreatedAtAsc(postId);
             List<CommentDTO> commentDTOs = comments.stream()
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());

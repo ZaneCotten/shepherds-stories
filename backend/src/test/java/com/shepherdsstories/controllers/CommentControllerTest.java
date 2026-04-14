@@ -168,6 +168,77 @@ class CommentControllerTest {
     }
 
     @Test
+    void addComment_ReplySuccess() {
+        UUID parentCommentId = UUID.randomUUID();
+        Comment parentComment = new Comment();
+        parentComment.setId(parentCommentId);
+        parentComment.setPost(post);
+        parentComment.setUser(missionaryUser);
+        parentComment.setContent("Parent content");
+
+        CommentDTO replyDTO = CommentDTO.builder()
+                .content("Reply content")
+                .parentCommentId(parentCommentId)
+                .build();
+
+        Comment savedReply = new Comment();
+        savedReply.setId(UUID.randomUUID());
+        savedReply.setPost(post);
+        savedReply.setUser(supporterUser);
+        savedReply.setContent(replyDTO.getContent());
+        savedReply.setParentComment(parentComment);
+
+        when(commentRepository.findById(parentCommentId)).thenReturn(Optional.of(parentComment));
+        when(commentRepository.save(any(Comment.class))).thenReturn(savedReply);
+        when(connectionRepository.existsByMissionaryIdAndSupporterIdAndStatus(missionaryProfile.getId(), supporterUser.getId(), RequestStatus.APPROVED)).thenReturn(true);
+
+        ResponseEntity<?> response = controller.addComment(post.getId(), replyDTO, supporterAuth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        CommentDTO responseBody = (CommentDTO) response.getBody();
+        assert responseBody != null;
+        assertEquals("Reply content", responseBody.getContent());
+        assertEquals(parentCommentId, responseBody.getParentCommentId());
+    }
+
+    @Test
+    void addComment_ParentCommentNotFound() {
+        UUID fakeParentId = UUID.randomUUID();
+        CommentDTO replyDTO = CommentDTO.builder()
+                .content("Reply")
+                .parentCommentId(fakeParentId)
+                .build();
+
+        when(commentRepository.findById(fakeParentId)).thenReturn(Optional.empty());
+
+        ResponseEntity<?> response = controller.addComment(post.getId(), replyDTO, missionaryAuth);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    }
+
+    @Test
+    void addComment_ParentCommentPostMismatch() {
+        UUID parentCommentId = UUID.randomUUID();
+        Post differentPost = new Post();
+        differentPost.setId(UUID.randomUUID());
+
+        Comment parentComment = new Comment();
+        parentComment.setId(parentCommentId);
+        parentComment.setPost(differentPost); // Different post!
+
+        CommentDTO replyDTO = CommentDTO.builder()
+                .content("Reply")
+                .parentCommentId(parentCommentId)
+                .build();
+
+        when(commentRepository.findById(parentCommentId)).thenReturn(Optional.of(parentComment));
+
+        ResponseEntity<?> response = controller.addComment(post.getId(), replyDTO, missionaryAuth);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
     void getComments_Success() {
         Comment comment = new Comment();
         comment.setId(UUID.randomUUID());
@@ -176,7 +247,7 @@ class CommentControllerTest {
         comment.setContent("Hello");
         comment.setCreatedAt(OffsetDateTime.now());
 
-        when(commentRepository.findAllByPostId(post.getId())).thenReturn(List.of(comment));
+        when(commentRepository.findAllByPostIdOrderByCreatedAtAsc(post.getId())).thenReturn(List.of(comment));
 
         ResponseEntity<List<CommentDTO>> response = controller.getComments(post.getId());
 
