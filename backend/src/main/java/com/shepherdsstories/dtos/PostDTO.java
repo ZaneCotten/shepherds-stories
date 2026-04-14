@@ -20,4 +20,6 @@ public class PostDTO {
     private String authorName;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
+    private long likeCount;
+    private boolean liked;
 }

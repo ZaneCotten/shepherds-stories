@@ -3,11 +3,13 @@ package com.shepherdsstories.controllers;
 import com.shepherdsstories.data.enums.RequestStatus;
 import com.shepherdsstories.data.enums.Role;
 import com.shepherdsstories.data.repositories.MissionaryProfileRepository;
+import com.shepherdsstories.data.repositories.PostLikeRepository;
 import com.shepherdsstories.data.repositories.PostRepository;
 import com.shepherdsstories.data.repositories.UserRepository;
 import com.shepherdsstories.dtos.PostDTO;
 import com.shepherdsstories.entities.MissionaryProfile;
 import com.shepherdsstories.entities.Post;
+import com.shepherdsstories.entities.PostLike;
 import com.shepherdsstories.entities.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -39,6 +41,9 @@ class PostControllerTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private PostLikeRepository postLikeRepository;
 
     @InjectMocks
     private PostController controller;
@@ -164,6 +169,48 @@ class PostControllerTest {
         assertEquals("New Content", response.getBody().getContent());
         // Verify creation time is preserved (within some tolerance or just not null)
         assertEquals(existingPost.getCreatedAt(), response.getBody().getCreatedAt());
+    }
+
+    @Test
+    void toggleLike_NewLike_Success() {
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        post.setAuthor(missionaryProfile);
+        post.setCreatedAt(OffsetDateTime.now());
+
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(postLikeRepository.existsById(any())).thenReturn(false);
+        when(postLikeRepository.countByPostId(postId)).thenReturn(1L);
+        when(postLikeRepository.existsByPostIdAndUserId(eq(postId), any())).thenReturn(true);
+
+        ResponseEntity<PostDTO> response = controller.toggleLike(postId, auth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(1, response.getBody().getLikeCount());
+        assertTrue(response.getBody().isLiked());
+        verify(postLikeRepository, times(1)).save(any(PostLike.class));
+    }
+
+    @Test
+    void toggleLike_RemoveLike_Success() {
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        post.setAuthor(missionaryProfile);
+        post.setCreatedAt(OffsetDateTime.now());
+
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(postLikeRepository.existsById(any())).thenReturn(true);
+        when(postLikeRepository.countByPostId(postId)).thenReturn(0L);
+        when(postLikeRepository.existsByPostIdAndUserId(eq(postId), any())).thenReturn(false);
+
+        ResponseEntity<PostDTO> response = controller.toggleLike(postId, auth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(0, response.getBody().getLikeCount());
+        assertFalse(response.getBody().isLiked());
+        verify(postLikeRepository, times(1)).deleteById(any());
     }
 
     @Test
