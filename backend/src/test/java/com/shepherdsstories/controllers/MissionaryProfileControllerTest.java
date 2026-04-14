@@ -114,7 +114,9 @@ class MissionaryProfileControllerTest {
         ResponseEntity<MissionaryProfileDTO> response = controller.getProfile();
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("OAuth Missionary", response.getBody().getMissionaryName());
+        MissionaryProfileDTO body = response.getBody();
+        assertNotNull(body);
+        assertEquals("OAuth Missionary", body.getMissionaryName());
     }
 
     @Test
@@ -142,9 +144,10 @@ class MissionaryProfileControllerTest {
         ResponseEntity<List<Map<String, Object>>> response = controller.getPendingRequests();
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().size());
-        assertEquals("John Doe", response.getBody().get(0).get("supporterName"));
+        List<Map<String, Object>> body = response.getBody();
+        assertNotNull(body);
+        assertEquals(1, body.size());
+        assertEquals("John Doe", body.getFirst().get("supporterName"));
     }
 
     @Test
@@ -173,6 +176,58 @@ class MissionaryProfileControllerTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(RequestStatus.APPROVED, request.getStatus());
         verify(connectionRepository).save(request);
+    }
+
+    @Test
+    void toggleReferenceStatus_Success() {
+        String email = "missionary@example.com";
+        UUID userId = UUID.randomUUID();
+
+        User user = new User();
+        user.setId(userId);
+        user.setEmail(email);
+
+        MissionaryProfile profile = new MissionaryProfile();
+        profile.setId(userId);
+        profile.setIsReferenceDisabled(false);
+
+        setupAuth(email);
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(missionaryProfileRepository.findById(userId)).thenReturn(Optional.of(profile));
+
+        ResponseEntity<?> response = controller.toggleReferenceStatus();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(true, profile.getIsReferenceDisabled());
+        verify(missionaryProfileRepository).save(profile);
+
+        // Toggle back
+        controller.toggleReferenceStatus();
+        assertEquals(false, profile.getIsReferenceDisabled());
+    }
+
+    @Test
+    void toggleReferenceStatus_NullInitialValue_Success() {
+        String email = "missionary@example.com";
+        UUID userId = UUID.randomUUID();
+
+        User user = new User();
+        user.setId(userId);
+        user.setEmail(email);
+
+        MissionaryProfile profile = new MissionaryProfile();
+        profile.setId(userId);
+        profile.setIsReferenceDisabled(null); // Explicitly null
+
+        setupAuth(email);
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(missionaryProfileRepository.findById(userId)).thenReturn(Optional.of(profile));
+
+        ResponseEntity<?> response = controller.toggleReferenceStatus();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(true, profile.getIsReferenceDisabled()); // Should become true because !null -> !false (auto-unboxed or handled)
+        verify(missionaryProfileRepository).save(profile);
     }
 
     private void setupAuth(String email) {

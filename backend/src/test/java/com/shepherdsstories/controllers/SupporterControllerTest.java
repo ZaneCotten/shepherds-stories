@@ -21,6 +21,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -84,10 +85,11 @@ class SupporterControllerTest {
         when(missionaryProfileRepository.findByReferenceNumberIgnoreCase(code)).thenReturn(Optional.of(profile));
         when(connectionRepository.existsByMissionaryIdAndSupporterId(profile.getId(), supporter.getId())).thenReturn(false);
 
-        ResponseEntity<?> response = controller.sendRequest(code, auth);
+        ResponseEntity<Map<String, String>> response = controller.sendRequest(code, auth);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        Map<String, String> body = (Map<String, String>) response.getBody();
+        Map<String, String> body = response.getBody();
+        assertNotNull(body);
         assertEquals("Request sent!", body.get("message"));
         verify(connectionRepository).save(any());
     }
@@ -130,10 +132,11 @@ class SupporterControllerTest {
         when(inviteCodeRepository.findByCodeStringIgnoreCase(code)).thenReturn(Optional.of(inviteCode));
         when(connectionRepository.existsByMissionaryIdAndSupporterId(profile.getId(), supporter.getId())).thenReturn(false);
 
-        ResponseEntity<?> response = controller.sendRequest(code, auth);
+        ResponseEntity<Map<String, String>> response = controller.sendRequest(code, auth);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        Map<String, String> body = (Map<String, String>) response.getBody();
+        Map<String, String> body = response.getBody();
+        assertNotNull(body);
         assertEquals("Request sent!", body.get("message"));
     }
 
@@ -173,7 +176,7 @@ class SupporterControllerTest {
         when(missionaryProfileRepository.findByReferenceNumberIgnoreCase(code)).thenReturn(Optional.of(profile));
         when(connectionRepository.existsByMissionaryIdAndSupporterId(profile.getId(), newSupporter.getId())).thenReturn(false);
 
-        ResponseEntity<?> response = controller.sendRequest(code, auth);
+        ResponseEntity<Map<String, String>> response = controller.sendRequest(code, auth);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(supporterProfileRepository).save(newSupporter);
@@ -208,10 +211,11 @@ class SupporterControllerTest {
         when(supporterProfileRepository.findById(userId)).thenReturn(Optional.of(supporter));
         when(missionaryProfileRepository.findByReferenceNumberIgnoreCase(code)).thenReturn(Optional.of(profile));
 
-        ResponseEntity<?> response = controller.sendRequest(code, auth);
+        ResponseEntity<Map<String, String>> response = controller.sendRequest(code, auth);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        Map<String, String> body = (Map<String, String>) response.getBody();
+        Map<String, String> body = response.getBody();
+        assertNotNull(body);
         assertEquals("You cannot follow yourself.", body.get("message"));
     }
 
@@ -240,7 +244,7 @@ class SupporterControllerTest {
         when(missionaryProfileRepository.findByReferenceNumberIgnoreCase(code)).thenReturn(Optional.empty());
         when(inviteCodeRepository.findByCodeStringIgnoreCase(code)).thenReturn(Optional.empty());
 
-        ResponseEntity<?> response = controller.sendRequest(code, auth);
+        ResponseEntity<Map<String, String>> response = controller.sendRequest(code, auth);
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
     }
@@ -277,9 +281,46 @@ class SupporterControllerTest {
         when(missionaryProfileRepository.findByReferenceNumberIgnoreCase(code)).thenReturn(Optional.of(profile));
         when(connectionRepository.existsByMissionaryIdAndSupporterId(profile.getId(), supporter.getId())).thenReturn(false);
 
-        ResponseEntity<?> response = controller.sendRequest(code, auth);
+        ResponseEntity<Map<String, String>> response = controller.sendRequest(code, auth);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(missionaryProfileRepository).findByReferenceNumberIgnoreCase(code);
+    }
+
+    @Test
+    void sendRequest_ReferenceDisabled_Returns404() {
+        String code = "DISABLED";
+        String email = "supporter@example.com";
+        UUID userId = UUID.randomUUID();
+
+        User user = new User();
+        user.setId(userId);
+        user.setEmail(email);
+
+        MissionaryProfile profile = new MissionaryProfile();
+        profile.setId(UUID.randomUUID());
+        profile.setIsReferenceDisabled(true);
+        profile.setUser(new User());
+
+        SupporterProfile supporter = new SupporterProfile();
+        supporter.setId(userId);
+
+        OAuth2User oauthUser = mock(OAuth2User.class);
+        when(oauthUser.getAttribute("email")).thenReturn(email);
+
+        OAuth2AuthenticationToken auth = mock(OAuth2AuthenticationToken.class);
+        when(auth.isAuthenticated()).thenReturn(true);
+        when(auth.getPrincipal()).thenReturn(oauthUser);
+
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(supporterProfileRepository.findById(userId)).thenReturn(Optional.of(supporter));
+        when(missionaryProfileRepository.findByReferenceNumberIgnoreCase(code)).thenReturn(Optional.of(profile));
+
+        ResponseEntity<Map<String, String>> response = controller.sendRequest(code, auth);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        Map<String, String> body = response.getBody();
+        assertNotNull(body);
+        assertEquals("Missionary has disabled invitations.", body.get("message"));
     }
 }

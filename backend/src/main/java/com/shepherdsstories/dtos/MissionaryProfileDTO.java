@@ -10,4 +10,5 @@ public class MissionaryProfileDTO {
     private String locationRegion;
     private String biography;
     private String referenceNumber;
+    private Boolean isReferenceDisabled;
 }

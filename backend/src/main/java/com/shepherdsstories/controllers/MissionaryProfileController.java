@@ -8,6 +8,10 @@ import com.shepherdsstories.dtos.MissionaryProfileDTO;
 import com.shepherdsstories.entities.ConnectionRequest;
 import com.shepherdsstories.entities.MissionaryProfile;
 import com.shepherdsstories.entities.User;
+import com.shepherdsstories.exceptions.ResourceNotFoundException;
+import com.shepherdsstories.exceptions.UnauthenticatedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -27,6 +31,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/missionary")
 public class MissionaryProfileController {
+    private static final Logger logger = LoggerFactory.getLogger(MissionaryProfileController.class);
 
     private final MissionaryProfileRepository missionaryProfileRepository;
     private final UserRepository userRepository;
@@ -63,17 +68,17 @@ public class MissionaryProfileController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Error fetching pending requests", e);
             return ResponseEntity.status(500).build();
         }
     }
 
     @PostMapping("/requests/{requestId}/respond")
     @Transactional
-    public ResponseEntity<?> respondToRequest(@PathVariable java.util.UUID requestId, @RequestParam boolean approve) {
+    public ResponseEntity<Map<String, String>> respondToRequest(@PathVariable java.util.UUID requestId, @RequestParam boolean approve) {
         User user = getCurrentUser();
         ConnectionRequest request = connectionRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Request not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Request not found"));
 
         if (!request.getMissionary().getId().equals(user.getId())) {
             return ResponseEntity.status(403).build();
@@ -89,44 +94,77 @@ public class MissionaryProfileController {
     private User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
-            throw new RuntimeException("Unauthenticated");
+            throw new UnauthenticatedException("Unauthenticated");
         }
 
         String principalName = authentication.getName();
         String email = null;
 
         if (authentication instanceof org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken authToken) {
-            email = authToken.getPrincipal().getAttribute("email");
+            org.springframework.security.oauth2.core.user.OAuth2User principal = authToken.getPrincipal();
+            if (principal != null) {
+                Object emailAttr = principal.getAttribute("email");
+                email = emailAttr != null ? emailAttr.toString() : null;
+            }
         } else if (authentication.getPrincipal() instanceof org.springframework.security.oauth2.core.user.OAuth2User oauthUser) {
-            email = oauthUser.getAttribute("email");
+            Object emailAttr = oauthUser.getAttribute("email");
+            email = emailAttr != null ? emailAttr.toString() : null;
         }
 
         if (email != null) {
             String finalEmail = email.trim().toLowerCase();
             return userRepository.findByEmailIgnoreCase(finalEmail)
                     .or(() -> userRepository.findByOauthId("GOOGLE:" + finalEmail))
-                    .orElseThrow(() -> new RuntimeException("User not found by email: " + finalEmail));
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found by email: " + finalEmail));
         }
 
         return userRepository.findByEmailIgnoreCase(principalName)
                 .or(() -> userRepository.findByOauthId(principalName))
-                .orElseThrow(() -> new RuntimeException("User not found by principal: " + principalName));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found by principal: " + principalName));
     }
 
     @GetMapping("/profile")
     @Transactional(readOnly = true)
     public ResponseEntity<MissionaryProfileDTO> getProfile() {
-        User user = getCurrentUser();
+        try {
+            User user = getCurrentUser();
 
-        MissionaryProfile profile = missionaryProfileRepository.findById(user.getId())
-                .orElseThrow(() -> new RuntimeException("Missionary profile not found"));
+            MissionaryProfile profile = missionaryProfileRepository.findById(user.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Missionary profile not found"));
 
-        MissionaryProfileDTO dto = new MissionaryProfileDTO();
-        dto.setMissionaryName(profile.getMissionaryName());
-        dto.setLocationRegion(profile.getLocationRegion());
-        dto.setBiography(profile.getBiography());
-        dto.setReferenceNumber(profile.getReferenceNumber());
+            MissionaryProfileDTO dto = new MissionaryProfileDTO();
+            dto.setMissionaryName(profile.getMissionaryName());
+            dto.setLocationRegion(profile.getLocationRegion());
+            dto.setBiography(profile.getBiography());
+            dto.setReferenceNumber(profile.getReferenceNumber());
+            dto.setIsReferenceDisabled(profile.getIsReferenceDisabled());
 
-        return ResponseEntity.ok(dto);
+            return ResponseEntity.ok(dto);
+        } catch (Exception e) {
+            logger.error("Error fetching missionary profile", e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    @PostMapping("/profile/toggle-reference")
+    @Transactional
+    public ResponseEntity<Map<String, Object>> toggleReferenceStatus() {
+        try {
+            User user = getCurrentUser();
+            MissionaryProfile profile = missionaryProfileRepository.findById(user.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Missionary profile not found"));
+
+            boolean currentStatus = profile.getIsReferenceDisabled() != null && profile.getIsReferenceDisabled();
+            profile.setIsReferenceDisabled(!currentStatus);
+            missionaryProfileRepository.save(profile);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", profile.getIsReferenceDisabled() ? "Reference code disabled" : "Reference code enabled",
+                    "isDisabled", profile.getIsReferenceDisabled()
+            ));
+        } catch (Exception e) {
+            logger.error("Error toggling reference status", e);
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error"));
+        }
     }
 }

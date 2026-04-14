@@ -33,7 +33,7 @@ public class MissionaryProfile {
     private String referenceNumber;
 
     @Column(name = "is_reference_disabled", nullable = false)
-    private Boolean isReferenceDisabled;
+    private Boolean isReferenceDisabled = false;
 
     @Column(name = "missionary_name", nullable = false, length = NAME_MAX_LENGTH)
     private String missionaryName;

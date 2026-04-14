@@ -1,5 +1,4 @@
 import {useEffect, useState} from "react";
-import {useNavigate} from "react-router-dom";
 
 export const MissionaryView = () => {
     const [profile, setProfile] = useState(null);
@@ -45,6 +44,23 @@ export const MissionaryView = () => {
         }
     };
 
+    const handleToggleReference = async () => {
+        try {
+            const response = await fetch("/api/missionary/profile/toggle-reference", {
+                method: 'POST'
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setProfile(prev => ({...prev, isReferenceDisabled: data.isDisabled}));
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                alert(`Failed to toggle reference status: ${errorData.error || response.statusText}`);
+            }
+        } catch (err) {
+            alert(`Error toggling reference status: ${err.message}`);
+        }
+    };
+
     const handleLogout = () => {
         localStorage.removeItem("user");
         window.location.href = "/home";
@@ -78,14 +94,30 @@ export const MissionaryView = () => {
             }}>
                 <p style={{color: "var(--text-muted)", fontSize: "1rem", marginBottom: "5px"}}>Your Invite Code</p>
                 <p style={{
-                    color: "var(--accent)",
+                    color: profile?.isReferenceDisabled ? "var(--text-muted)" : "var(--accent)",
                     fontSize: "1.5rem",
                     fontWeight: "bold",
                     letterSpacing: "2px",
-                    fontFamily: "monospace"
+                    fontFamily: "monospace",
+                    opacity: profile?.isReferenceDisabled ? 0.4 : 1
                 }}>
                     {profile?.referenceNumber}
                 </p>
+                <button
+                    onClick={handleToggleReference}
+                    style={{
+                        marginTop: "15px",
+                        padding: "5px 15px",
+                        borderRadius: "6px",
+                        backgroundColor: profile?.isReferenceDisabled ? "var(--accent)" : "transparent",
+                        color: profile?.isReferenceDisabled ? "white" : "var(--text-muted)",
+                        border: profile?.isReferenceDisabled ? "none" : "1px solid var(--border-input)",
+                        cursor: "pointer",
+                        fontSize: "0.8rem"
+                    }}
+                >
+                    {profile?.isReferenceDisabled ? "Enable Invite Code" : "Disable Invite Code"}
+                </button>
             </div>
 
             {requests.length > 0 && (
