@@ -119,6 +119,34 @@ public class PostController {
         }
     }
 
+    @PutMapping("/{id}")
+    @Transactional
+    public ResponseEntity<PostDTO> updatePost(@PathVariable UUID id, @RequestBody PostDTO postDTO, Authentication authentication) {
+        try {
+            User user = getCurrentUser(authentication);
+            Post post = postRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
+
+            if (!post.getAuthor().getId().equals(user.getId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+
+            post.setTitle(postDTO.getTitle());
+            post.setContent(postDTO.getContent());
+            post.setUpdatedAt(OffsetDateTime.now());
+
+            Post updatedPost = postRepository.save(post);
+            return ResponseEntity.ok(convertToDTO(updatedPost));
+        } catch (UnauthenticatedException _) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        } catch (ResourceNotFoundException _) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Throwable t) {
+            logger.error("CRITICAL ERROR updating post", t);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     private PostDTO convertToDTO(Post post) {
         return PostDTO.builder()
                 .id(post.getId())

@@ -137,4 +137,55 @@ class PostControllerTest {
         assertEquals("Missionary Update", response.getBody().get(0).getTitle());
         assertEquals("Test Missionary", response.getBody().get(0).getAuthorName());
     }
+
+    @Test
+    void updatePost_Success() {
+        UUID postId = UUID.randomUUID();
+        Post existingPost = new Post();
+        existingPost.setId(postId);
+        existingPost.setTitle("Old Title");
+        existingPost.setContent("Old Content");
+        existingPost.setAuthor(missionaryProfile);
+        existingPost.setCreatedAt(OffsetDateTime.now().minusDays(1));
+        existingPost.setUpdatedAt(existingPost.getCreatedAt());
+
+        PostDTO updateDTO = PostDTO.builder()
+                .title("New Title")
+                .content("New Content")
+                .build();
+
+        when(postRepository.findById(postId)).thenReturn(Optional.of(existingPost));
+        when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ResponseEntity<PostDTO> response = controller.updatePost(postId, updateDTO, auth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("New Title", response.getBody().getTitle());
+        assertEquals("New Content", response.getBody().getContent());
+        // Verify creation time is preserved (within some tolerance or just not null)
+        assertEquals(existingPost.getCreatedAt(), response.getBody().getCreatedAt());
+    }
+
+    @Test
+    void updatePost_Forbidden() {
+        UUID postId = UUID.randomUUID();
+        MissionaryProfile otherMissionary = new MissionaryProfile();
+        otherMissionary.setId(UUID.randomUUID());
+
+        Post existingPost = new Post();
+        existingPost.setId(postId);
+        existingPost.setAuthor(otherMissionary);
+
+        PostDTO updateDTO = PostDTO.builder()
+                .title("New Title")
+                .content("New Content")
+                .build();
+
+        when(postRepository.findById(postId)).thenReturn(Optional.of(existingPost));
+
+        ResponseEntity<PostDTO> response = controller.updatePost(postId, updateDTO, auth);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        verify(postRepository, never()).save(any());
+    }
 }

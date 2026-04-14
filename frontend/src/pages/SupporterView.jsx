@@ -165,11 +165,19 @@ export const SupporterView = () => {
                                             {post.authorName}
                                         </p>
                                     </div>
-                                    <p style={{color: "var(--text-muted)", fontSize: "0.8rem"}}>
+                                    <p style={{color: "var(--text-muted)", fontSize: "0.8rem", textAlign: "right"}}>
                                         {new Date(post.createdAt).toLocaleString([], {
                                             dateStyle: 'short',
                                             timeStyle: 'short'
                                         })}
+                                        {post.updatedAt && new Date(post.updatedAt).getTime() > new Date(post.createdAt).getTime() + 1000 && (
+                                            <div style={{fontStyle: "italic", marginTop: "2px"}}>
+                                                (Updated: {new Date(post.updatedAt).toLocaleString([], {
+                                                dateStyle: 'short',
+                                                timeStyle: 'short'
+                                            })})
+                                            </div>
+                                        )}
                                     </p>
                                 </div>
                                 <p style={{color: "var(--text)", whiteSpace: "pre-wrap"}}>{post.content}</p>
