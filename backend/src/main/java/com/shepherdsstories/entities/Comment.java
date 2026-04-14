@@ -51,6 +51,10 @@ public class Comment {
     @ColumnDefault("false")
     private Boolean edited = false;
 
+    @Column(name = "is_deleted", nullable = false)
+    @ColumnDefault("false")
+    private Boolean isDeleted = false;
+
 
     @PrePersist
     public void onCreate() {

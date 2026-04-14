@@ -131,6 +131,10 @@ public class CommentController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of(ERROR_KEY, "You can only edit your own comments."));
             }
 
+            if (comment.getIsDeleted()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(java.util.Map.of(ERROR_KEY, "Deleted comments cannot be edited."));
+            }
+
             comment.setContent(commentDTO.getContent());
             comment.setEdited(true);
             comment.setUpdatedAt(OffsetDateTime.now());
@@ -165,6 +169,13 @@ public class CommentController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of(ERROR_KEY, "You can only delete your own comments."));
             }
 
+            if (commentRepository.existsByParentComment(comment)) {
+                comment.setContent("comment has been deleted");
+                comment.setIsDeleted(true);
+                commentRepository.save(comment);
+                return ResponseEntity.ok(convertToDTO(comment));
+            }
+
             commentRepository.delete(comment);
             return ResponseEntity.noContent().build();
         } catch (UnauthenticatedException _) {
@@ -188,6 +199,7 @@ public class CommentController {
                 .createdAt(comment.getCreatedAt())
                 .updatedAt(comment.getUpdatedAt())
                 .edited(comment.getEdited())
+                .isDeleted(comment.getIsDeleted())
                 .build();
     }
 

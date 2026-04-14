@@ -320,7 +320,25 @@ class CommentControllerTest {
     }
 
     @Test
-    void deleteComment_Success() {
+    void updateComment_DeletedComment() {
+        UUID commentId = UUID.randomUUID();
+        Comment comment = new Comment();
+        comment.setId(commentId);
+        comment.setPost(post);
+        comment.setUser(missionaryUser);
+        comment.setIsDeleted(true);
+
+        CommentDTO updateDTO = CommentDTO.builder().content("New content").build();
+
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+
+        ResponseEntity<?> response = controller.updateComment(post.getId(), commentId, updateDTO, missionaryAuth);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void deleteComment_LeafSuccess() {
         UUID commentId = UUID.randomUUID();
         Comment comment = new Comment();
         comment.setId(commentId);
@@ -328,11 +346,35 @@ class CommentControllerTest {
         comment.setUser(missionaryUser);
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+        when(commentRepository.existsByParentComment(comment)).thenReturn(false);
 
         ResponseEntity<?> response = controller.deleteComment(post.getId(), commentId, missionaryAuth);
 
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
         verify(commentRepository).delete(comment);
+    }
+
+    @Test
+    void deleteComment_ParentSuccess() {
+        UUID commentId = UUID.randomUUID();
+        Comment comment = new Comment();
+        comment.setId(commentId);
+        comment.setPost(post);
+        comment.setUser(missionaryUser);
+
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+        when(commentRepository.existsByParentComment(comment)).thenReturn(true);
+        when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ResponseEntity<?> response = controller.deleteComment(post.getId(), commentId, missionaryAuth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        CommentDTO responseDTO = (CommentDTO) response.getBody();
+        assert responseDTO != null;
+        assertEquals("comment has been deleted", responseDTO.getContent());
+        assertTrue(responseDTO.getIsDeleted());
+        verify(commentRepository, never()).delete(comment);
+        verify(commentRepository).save(comment);
     }
 
     @Test

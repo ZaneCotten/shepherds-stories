@@ -22,4 +22,5 @@ public class CommentDTO {
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
     private Boolean edited;
+    private Boolean isDeleted;
 }

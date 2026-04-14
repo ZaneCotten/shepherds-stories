@@ -99,7 +99,12 @@ export const CommentSection = ({postId}) => {
             });
 
             if (response.ok) {
-                setComments(comments.filter(c => String(c.id) !== String(commentId)));
+                if (response.status === 204) {
+                    setComments(comments.filter(c => String(c.id) !== String(commentId)));
+                } else {
+                    const updatedComment = await response.json();
+                    setComments(comments.map(c => String(c.id) === String(commentId) ? updatedComment : c));
+                }
             } else {
                 const errorData = await response.json().catch(() => ({}));
                 alert(errorData.error || "Failed to delete comment.");
@@ -159,7 +164,7 @@ export const CommentSection = ({postId}) => {
                                     dateStyle: 'short',
                                     timeStyle: 'short'
                                 })}
-                                {comment.edited && (
+                                {comment.edited && !comment.isDeleted && (
                                     <span style={{fontStyle: 'italic', marginLeft: '4px'}}
                                           title={`Updated at: ${new Date(comment.updatedAt).toLocaleString()}`}>
                                         (edited)
@@ -180,7 +185,7 @@ export const CommentSection = ({postId}) => {
                                         }}
                                     >Reply</button>
                                 )}
-                                {canEdit && !isEditing && (
+                                {canEdit && !isEditing && !comment.isDeleted && (
                                     <>
                                         <button
                                             onClick={() => startEditing(comment)}
@@ -263,7 +268,9 @@ export const CommentSection = ({postId}) => {
                             margin: 0,
                             fontSize: "0.9rem",
                             color: "var(--text)",
-                            whiteSpace: "pre-wrap"
+                            whiteSpace: "pre-wrap",
+                            fontStyle: comment.isDeleted ? "italic" : "normal",
+                            opacity: comment.isDeleted ? 0.7 : 1
                         }}>{comment.content}</p>
                     )}
 
