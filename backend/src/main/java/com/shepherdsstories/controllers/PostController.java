@@ -6,6 +6,7 @@ import com.shepherdsstories.data.enums.Role;
 import com.shepherdsstories.data.repositories.MissionaryProfileRepository;
 import com.shepherdsstories.data.repositories.PostLikeRepository;
 import com.shepherdsstories.data.repositories.PostRepository;
+import com.shepherdsstories.data.repositories.SupporterProfileRepository;
 import com.shepherdsstories.data.repositories.UserRepository;
 import com.shepherdsstories.dtos.PostDTO;
 import com.shepherdsstories.entities.*;
@@ -13,6 +14,7 @@ import com.shepherdsstories.exceptions.ResourceNotFoundException;
 import com.shepherdsstories.exceptions.UnauthenticatedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -31,15 +33,18 @@ public class PostController {
 
     private final PostRepository postRepository;
     private final MissionaryProfileRepository missionaryProfileRepository;
+    private final SupporterProfileRepository supporterProfileRepository;
     private final UserRepository userRepository;
     private final PostLikeRepository postLikeRepository;
 
     public PostController(PostRepository postRepository,
                           MissionaryProfileRepository missionaryProfileRepository,
+                          SupporterProfileRepository supporterProfileRepository,
                           UserRepository userRepository,
                           PostLikeRepository postLikeRepository) {
         this.postRepository = postRepository;
         this.missionaryProfileRepository = missionaryProfileRepository;
+        this.supporterProfileRepository = supporterProfileRepository;
         this.userRepository = userRepository;
         this.postLikeRepository = postLikeRepository;
     }
@@ -187,6 +192,8 @@ public class PostController {
         long likeCount = postLikeRepository.countByPostId(post.getId());
         boolean liked = currentUser != null && postLikeRepository.existsByPostIdAndUserId(post.getId(), currentUser.getId());
 
+        String lastLikerName = resolveLastLikerName(post.getId(), currentUser);
+
         return PostDTO.builder()
                 .id(post.getId())
                 .title(post.getTitle())
@@ -197,7 +204,41 @@ public class PostController {
                 .updatedAt(post.getUpdatedAt())
                 .likeCount(likeCount)
                 .liked(liked)
+                .lastLikerName(lastLikerName)
                 .build();
+    }
+
+    private String resolveLastLikerName(UUID postId, User currentUser) {
+        List<PostLike> latestLikes = postLikeRepository.findLatestLikes(postId, PageRequest.of(0, 5));
+        if (latestLikes.isEmpty()) {
+            return null;
+        }
+
+        User lastLiker = latestLikes.get(0).getUser();
+        if (currentUser != null && lastLiker.getId().equals(currentUser.getId())) {
+            return "you";
+        }
+
+        return getUserDisplayName(lastLiker);
+    }
+
+    private String getUserDisplayName(User user) {
+        if (user.getRole() == Role.MISSIONARY) {
+            return missionaryProfileRepository.findById(user.getId())
+                    .map(mp -> {
+                        String name = mp.getMissionaryName().trim();
+                        return name.isEmpty() ? user.getEmail() : name;
+                    })
+                    .orElse(user.getEmail());
+        } else if (user.getRole() == Role.SUPPORTER) {
+            return supporterProfileRepository.findById(user.getId())
+                    .map(sp -> {
+                        String name = (sp.getFirstName() + " " + sp.getLastName()).trim();
+                        return name.isEmpty() ? user.getEmail() : name;
+                    })
+                    .orElse(user.getEmail());
+        }
+        return user.getEmail();
     }
 
     private User getCurrentUser(Authentication authentication) {

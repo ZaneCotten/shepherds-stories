@@ -22,4 +22,5 @@ public class PostDTO {
     private OffsetDateTime updatedAt;
     private long likeCount;
     private boolean liked;
+    private String lastLikerName;
 }

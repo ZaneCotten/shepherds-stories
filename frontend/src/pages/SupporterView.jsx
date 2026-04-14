@@ -229,7 +229,14 @@ export const SupporterView = () => {
                                         <span>Like</span>
                                     </button>
                                     <span style={{color: "var(--text-muted)", fontSize: "0.9rem"}}>
-                                        {post.likeCount} {post.likeCount === 1 ? "like" : "likes"}
+                                        {post.lastLikerName ? (
+                                            <>
+                                                Liked by <strong>{post.lastLikerName}</strong>
+                                                {post.likeCount > 1 && ` and ${post.likeCount - 1} more`}
+                                            </>
+                                        ) : (
+                                            `${post.likeCount} ${post.likeCount === 1 ? "like" : "likes"}`
+                                        )}
                                     </span>
                                 </div>
 
