@@ -72,8 +72,8 @@ class RegistrationServiceTest {
         when(userFactory.createBaseUser(dto)).thenReturn(user);
         when(passwordEncoder.encode(dto.getPassword())).thenReturn("hashed_password");
         when(userRepository.save(any(User.class))).thenReturn(user);
-        when(userFactory.createMissionary(user, dto)).thenReturn(profile);
-        when(userFactory.createInviteCode(profile)).thenReturn(inviteCode);
+        when(userFactory.createMissionary(eq(user), eq(dto), anyString())).thenReturn(profile);
+        when(userFactory.createInviteCode(eq(profile), anyString())).thenReturn(inviteCode);
 
         registrationService.register(dto);
 
@@ -128,8 +128,8 @@ class RegistrationServiceTest {
 
         when(userFactory.createBaseUser(dto)).thenReturn(user);
         when(userRepository.save(any(User.class))).thenReturn(user);
-        when(userFactory.createMissionary(user, dto)).thenReturn(profile);
-        when(userFactory.createInviteCode(profile)).thenReturn(inviteCode);
+        when(userFactory.createMissionary(eq(user), eq(dto), anyString())).thenReturn(profile);
+        when(userFactory.createInviteCode(eq(profile), anyString())).thenReturn(inviteCode);
 
         registrationService.registerSocial(dto, oauthId, AuthProvider.GOOGLE);
 

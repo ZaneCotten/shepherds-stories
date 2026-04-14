@@ -10,9 +10,12 @@ import com.shepherdsstories.dtos.RegistrationRequestDTO;
 import com.shepherdsstories.entities.MissionaryProfile;
 import com.shepherdsstories.entities.User;
 import com.shepherdsstories.factories.UserFactory;
+import com.shepherdsstories.utils.CodeGenerator;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import static com.shepherdsstories.utils.ValidationConstants.REF_CODE_LENGTH;
 
 @Service
 public class RegistrationService {
@@ -59,9 +62,10 @@ public class RegistrationService {
 
     private void saveRoleProfile(RegistrationRequestDTO dto, User user) {
         if (dto.getRole() == Role.MISSIONARY) {
-            MissionaryProfile profile = userFactory.createMissionary(user, dto);
+            String referenceNumber = CodeGenerator.generateReference(REF_CODE_LENGTH);
+            MissionaryProfile profile = userFactory.createMissionary(user, dto, referenceNumber);
             missionaryProfileRepository.save(profile);
-            inviteCodeRepository.save(userFactory.createInviteCode(profile));
+            inviteCodeRepository.save(userFactory.createInviteCode(profile, referenceNumber));
             return;
         }
 

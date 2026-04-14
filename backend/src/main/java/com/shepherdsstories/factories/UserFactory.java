@@ -67,7 +67,7 @@ public class UserFactory {
         return user;
     }
 
-    public MissionaryProfile createMissionary(User user, RegistrationRequestDTO dto) {
+    public MissionaryProfile createMissionary(User user, RegistrationRequestDTO dto, String referenceNumber) {
         MissionaryProfile profile = new MissionaryProfile();
         profile.setUser(user); // Ties the UUIDs together via @MapsId
         profile.setMissionaryName(defaultMissionaryName(dto.getDisplayName(), dto.getEmail()));
@@ -75,15 +75,15 @@ public class UserFactory {
         profile.setBiography(dto.getBiography());
         profile.setCreatedAt(OffsetDateTime.now());
         profile.setIsReferenceDisabled(false);
-        profile.setReferenceNumber(CodeGenerator.generateReference(REF_CODE_LENGTH));
+        profile.setReferenceNumber(referenceNumber);
         // The unique reference number is also stored in a separate InviteCode entity.
         return profile;
     }
 
-    public InviteCode createInviteCode(MissionaryProfile profile) {
+    public InviteCode createInviteCode(MissionaryProfile profile, String code) {
         InviteCode inviteCode = new InviteCode();
         inviteCode.setMissionary(profile);
-        inviteCode.setCodeString(CodeGenerator.generateReference(REF_CODE_LENGTH));
+        inviteCode.setCodeString(code);
         inviteCode.setIsActive(true);
         inviteCode.setCreatedAt(OffsetDateTime.now());
         return inviteCode;
@@ -94,6 +94,16 @@ public class UserFactory {
         profile.setUser(user);
         profile.setFirstName(defaultFirstName(dto.getFirstName(), dto.getEmail()));
         profile.setLastName(defaultLastName(dto.getLastName()));
+        profile.setCreatedAt(OffsetDateTime.now());
+        profile.setIsVerified(false);
+        return profile;
+    }
+
+    public SupporterProfile createDefaultSupporter(User user) {
+        SupporterProfile profile = new SupporterProfile();
+        profile.setUser(user);
+        profile.setFirstName(fallbackNameFromEmail(user.getEmail(), "Supporter"));
+        profile.setLastName("Account");
         profile.setCreatedAt(OffsetDateTime.now());
         profile.setIsVerified(false);
         return profile;

@@ -1,9 +1,13 @@
 package com.shepherdsstories.controllers;
 
+import com.shepherdsstories.data.enums.RequestStatus;
+import com.shepherdsstories.data.repositories.ConnectionRepository;
 import com.shepherdsstories.data.repositories.MissionaryProfileRepository;
 import com.shepherdsstories.data.repositories.UserRepository;
 import com.shepherdsstories.dtos.MissionaryProfileDTO;
+import com.shepherdsstories.entities.ConnectionRequest;
 import com.shepherdsstories.entities.MissionaryProfile;
+import com.shepherdsstories.entities.SupporterProfile;
 import com.shepherdsstories.entities.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,12 +20,16 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -33,11 +41,14 @@ class MissionaryProfileControllerTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private ConnectionRepository connectionRepository;
+
     private MissionaryProfileController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new MissionaryProfileController(missionaryProfileRepository, userRepository);
+        controller = new MissionaryProfileController(missionaryProfileRepository, userRepository, connectionRepository);
     }
 
     @Test
@@ -74,11 +85,103 @@ class MissionaryProfileControllerTest {
     }
 
     @Test
-    void getProfile_Unauthenticated_ReturnsUnauthorized() {
-        SecurityContextHolder.clearContext();
+    void getProfile_OAuth2_Success() {
+        String email = "missionary@example.com";
+        UUID userId = UUID.randomUUID();
+
+        User user = new User();
+        user.setId(userId);
+        user.setEmail(email);
+
+        MissionaryProfile profile = new MissionaryProfile();
+        profile.setId(userId);
+        profile.setMissionaryName("OAuth Missionary");
+
+        org.springframework.security.oauth2.core.user.OAuth2User oauthUser = mock(org.springframework.security.oauth2.core.user.OAuth2User.class);
+        when(oauthUser.getAttribute("email")).thenReturn(email);
+
+        org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken auth = mock(org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken.class);
+        when(auth.isAuthenticated()).thenReturn(true);
+        when(auth.getPrincipal()).thenReturn(oauthUser);
+
+        SecurityContext securityContext = mock(SecurityContext.class);
+        when(securityContext.getAuthentication()).thenReturn(auth);
+        SecurityContextHolder.setContext(securityContext);
+
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(missionaryProfileRepository.findById(userId)).thenReturn(Optional.of(profile));
 
         ResponseEntity<MissionaryProfileDTO> response = controller.getProfile();
 
-        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("OAuth Missionary", response.getBody().getMissionaryName());
+    }
+
+    @Test
+    void getPendingRequests_Success() {
+        String email = "missionary@example.com";
+        UUID userId = UUID.randomUUID();
+
+        User user = new User();
+        user.setId(userId);
+        user.setEmail(email);
+
+        SupporterProfile supporter = new SupporterProfile();
+        supporter.setFirstName("John");
+        supporter.setLastName("Doe");
+
+        ConnectionRequest request = new ConnectionRequest();
+        request.setId(UUID.randomUUID());
+        request.setSupporter(supporter);
+        request.setCreatedAt(OffsetDateTime.now());
+
+        setupAuth(email);
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(connectionRepository.findByMissionaryIdAndStatus(userId, RequestStatus.PENDING)).thenReturn(List.of(request));
+
+        ResponseEntity<List<Map<String, Object>>> response = controller.getPendingRequests();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
+        assertEquals("John Doe", response.getBody().get(0).get("supporterName"));
+    }
+
+    @Test
+    void respondToRequest_Approve_Success() {
+        String email = "missionary@example.com";
+        UUID userId = UUID.randomUUID();
+        UUID requestId = UUID.randomUUID();
+
+        User user = new User();
+        user.setId(userId);
+        user.setEmail(email);
+
+        MissionaryProfile profile = new MissionaryProfile();
+        profile.setId(userId);
+
+        ConnectionRequest request = new ConnectionRequest();
+        request.setId(requestId);
+        request.setMissionary(profile);
+
+        setupAuth(email);
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(connectionRepository.findById(requestId)).thenReturn(Optional.of(request));
+
+        ResponseEntity<?> response = controller.respondToRequest(requestId, true);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(RequestStatus.APPROVED, request.getStatus());
+        verify(connectionRepository).save(request);
+    }
+
+    private void setupAuth(String email) {
+        Authentication auth = mock(Authentication.class);
+        when(auth.isAuthenticated()).thenReturn(true);
+        when(auth.getName()).thenReturn(email);
+
+        SecurityContext securityContext = mock(SecurityContext.class);
+        when(securityContext.getAuthentication()).thenReturn(auth);
+        SecurityContextHolder.setContext(securityContext);
     }
 }

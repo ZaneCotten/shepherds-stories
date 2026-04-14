@@ -48,6 +48,9 @@ public class MissionaryProfile {
     @OrderBy("createdAt DESC") // Shows the newest requests first
     private List<PrayerRequest> prayerRequests = new ArrayList<>();
 
+    @OneToMany(mappedBy = "missionary", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<InviteCode> inviteCodes = new ArrayList<>();
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

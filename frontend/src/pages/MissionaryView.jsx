@@ -3,19 +3,25 @@ import {useNavigate} from "react-router-dom";
 
 export const MissionaryView = () => {
     const [profile, setProfile] = useState(null);
+    const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        fetch("/api/missionary/profile")
-            .then(res => {
-                if (!res.ok) {
-                    throw new Error("Failed to fetch profile");
-                }
-                return res.json();
-            })
-            .then(data => {
-                setProfile(data);
+        const fetchProfile = fetch("/api/missionary/profile").then(res => {
+            if (!res.ok) throw new Error("Failed to fetch profile");
+            return res.json();
+        });
+
+        const fetchRequests = fetch("/api/missionary/requests").then(res => {
+            if (!res.ok) throw new Error("Failed to fetch requests");
+            return res.json();
+        });
+
+        Promise.all([fetchProfile, fetchRequests])
+            .then(([profileData, requestsData]) => {
+                setProfile(profileData);
+                setRequests(requestsData);
                 setLoading(false);
             })
             .catch(err => {
@@ -23,6 +29,21 @@ export const MissionaryView = () => {
                 setLoading(false);
             });
     }, []);
+
+    const handleRespond = async (requestId, approve) => {
+        try {
+            const response = await fetch(`/api/missionary/requests/${requestId}/respond?approve=${approve}`, {
+                method: 'POST'
+            });
+            if (response.ok) {
+                setRequests(requests.filter(req => req.id !== requestId));
+            } else {
+                alert("Failed to process request.");
+            }
+        } catch (err) {
+            alert("Error responding to request.");
+        }
+    };
 
     const handleLogout = () => {
         localStorage.removeItem("user");
@@ -66,6 +87,68 @@ export const MissionaryView = () => {
                     {profile?.referenceNumber}
                 </p>
             </div>
+
+            {requests.length > 0 && (
+                <div style={{
+                    width: "100%",
+                    maxWidth: "500px",
+                    backgroundColor: "var(--bg-card)",
+                    padding: "20px",
+                    borderRadius: "12px",
+                    border: "1px solid var(--border-input)",
+                    marginBottom: "30px"
+                }}>
+                    <h2 style={{color: "var(--text-h)", fontSize: "1.5rem", marginBottom: "15px", textAlign: "center"}}>
+                        Connection Requests
+                    </h2>
+                    <div style={{display: "flex", flexDirection: "column", gap: "10px"}}>
+                        {requests.map(req => (
+                            <div key={req.id} style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                padding: "10px",
+                                backgroundColor: "var(--bg-input)",
+                                borderRadius: "8px",
+                                border: "1px solid var(--border-input)"
+                            }}>
+                                <span style={{color: "var(--text)", fontWeight: "bold"}}>{req.supporterName}</span>
+                                <div style={{display: "flex", gap: "10px"}}>
+                                    <button
+                                        onClick={() => handleRespond(req.id, true)}
+                                        style={{
+                                            padding: "5px 10px",
+                                            borderRadius: "4px",
+                                            backgroundColor: "green",
+                                            color: "white",
+                                            border: "none",
+                                            cursor: "pointer",
+                                            fontSize: "0.9rem"
+                                        }}
+                                    >
+                                        Approve
+                                    </button>
+                                    <button
+                                        onClick={() => handleRespond(req.id, false)}
+                                        style={{
+                                            padding: "5px 10px",
+                                            borderRadius: "4px",
+                                            backgroundColor: "red",
+                                            color: "white",
+                                            border: "none",
+                                            cursor: "pointer",
+                                            fontSize: "0.9rem"
+                                        }}
+                                    >
+                                        Deny
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <button
                 onClick={handleLogout}
                 style={{

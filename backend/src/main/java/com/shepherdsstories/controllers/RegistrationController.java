@@ -6,8 +6,13 @@ import com.shepherdsstories.data.repositories.UserRepository;
 import com.shepherdsstories.data.records.RegistrationRequest;
 import com.shepherdsstories.dtos.RegistrationRequestDTO;
 import com.shepherdsstories.services.RegistrationService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,10 +25,12 @@ public class RegistrationController {
     private final UserRepository userRepository;
 
     private final RegistrationService registrationService;
+    private final SecurityContextRepository securityContextRepository;
 
-    public RegistrationController(RegistrationService registrationService, UserRepository userRepository) {
+    public RegistrationController(RegistrationService registrationService, UserRepository userRepository, SecurityContextRepository securityContextRepository) {
         this.registrationService = registrationService;
         this.userRepository = userRepository;
+        this.securityContextRepository = securityContextRepository;
     }
 
     private static String firstNonBlank(String... values) {
@@ -58,7 +65,7 @@ public class RegistrationController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@Valid @RequestBody RegistrationRequestDTO request) {
+    public ResponseEntity<String> register(@Valid @RequestBody RegistrationRequestDTO request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         String normalizedEmail = normalizeEmail(request.getEmail());
         request.setEmail(normalizedEmail);
         if (userRepository.findByEmailIgnoreCase(normalizedEmail).isPresent()) {
@@ -66,19 +73,23 @@ public class RegistrationController {
         }
 
         registrationService.register(request);
-        authenticateUser(request.getEmail(), request.getRole().name());
+        authenticateUser(request.getEmail(), request.getRole().name(), httpRequest, httpResponse);
         return ResponseEntity.ok("User registered successfully");
     }
 
-    private void authenticateUser(String email, String role) {
+    private void authenticateUser(String email, String role, HttpServletRequest request, HttpServletResponse response) {
         org.springframework.security.authentication.UsernamePasswordAuthenticationToken token =
                 new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
                         email, null, java.util.Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority(role)));
-        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(token);
+
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(token);
+        SecurityContextHolder.setContext(context);
+        securityContextRepository.saveContext(context, request, response);
     }
 
     @PostMapping("/register-social")
-    public ResponseEntity<String> registerSocialUser(@RequestBody RegistrationRequest request) {
+    public ResponseEntity<String> registerSocialUser(@RequestBody RegistrationRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         String email = normalizeEmail(request.email());
         if (email == null || email.isBlank()) {
             return ResponseEntity.badRequest().body("Email is required");
@@ -126,7 +137,7 @@ public class RegistrationController {
         dto.setLastName(familyName);
 
         registrationService.registerSocial(dto, oauthId, provider);
-        authenticateUser(email, role.name());
+        authenticateUser(email, role.name(), httpRequest, httpResponse);
 
         return ResponseEntity.ok("User registered successfully");
     }

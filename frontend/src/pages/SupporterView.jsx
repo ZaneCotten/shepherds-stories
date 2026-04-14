@@ -1,10 +1,39 @@
 import {useNavigate} from "react-router-dom";
+import {useState} from "react";
 
 export const SupporterView = () => {
+    const [inviteCode, setInviteCode] = useState("");
+    const [successMessage, setSuccessMessage] = useState("");
+    const [error, setError] = useState("");
 
     const handleLogout = () => {
         localStorage.removeItem("user");
         window.location.href = "/home";
+    };
+
+    const handleSearch = async (e) => {
+        e.preventDefault();
+        setError("");
+        setSuccessMessage("");
+
+        try {
+            const response = await fetch(`/api/supporter/send-request?code=${inviteCode}`, {
+                method: 'POST'
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setSuccessMessage(data.message || "Request sent!");
+            } else if (response.status === 400) {
+                const data = await response.json();
+                setError(data.message || "Invalid request.");
+            } else if (response.status === 403) {
+                setError("Access denied. Are you logged in as a missionary? Only supporters can send requests.");
+            } else {
+                setError("Missionary not found. Please check the code.");
+            }
+        } catch (err) {
+            setError("Failed to send connection request.");
+        }
     };
 
     return (
@@ -14,14 +43,72 @@ export const SupporterView = () => {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center"
+            justifyContent: "flex-start",
+            backgroundColor: "var(--bg-app)"
         }}>
             <h1 style={{color: "var(--text-h)", fontSize: "3rem", marginBottom: "20px"}}>
                 Supporter Dashboard
             </h1>
-            <p style={{color: "var(--text)", fontSize: "1.2rem", marginBottom: "30px"}}>
-                Welcome to your supporter portal.
-            </p>
+
+            <div style={{
+                backgroundColor: "var(--bg-card)",
+                padding: "30px",
+                borderRadius: "12px",
+                border: "1px solid var(--border-input)",
+                width: "100%",
+                maxWidth: "500px",
+                textAlign: "center",
+                marginBottom: "30px"
+            }}>
+                <h2 style={{color: "var(--text-h)", marginBottom: "20px"}}>Find a Missionary</h2>
+                <form onSubmit={handleSearch} style={{display: "flex", gap: "10px", marginBottom: "20px"}}>
+                    <input
+                        type="text"
+                        placeholder="Enter Invite Code"
+                        value={inviteCode}
+                        onChange={(e) => setInviteCode(e.target.value)}
+                        style={{
+                            flex: 1,
+                            padding: "10px",
+                            borderRadius: "8px",
+                            border: "1px solid var(--border-input)",
+                            backgroundColor: "var(--bg-input)",
+                            color: "var(--text-h)"
+                        }}
+                    />
+                    <button
+                        type="submit"
+                        style={{
+                            padding: "10px 20px",
+                            borderRadius: "8px",
+                            backgroundColor: "var(--accent-primary)",
+                            color: "white",
+                            border: "none",
+                            cursor: "pointer",
+                            fontWeight: "bold"
+                        }}
+                    >
+                        Connect
+                    </button>
+                </form>
+
+                {error && <p style={{color: "red", marginTop: "10px"}}>{error}</p>}
+
+                {successMessage && (
+                    <div style={{
+                        marginTop: "20px",
+                        padding: "20px",
+                        backgroundColor: "var(--bg-input)",
+                        borderRadius: "8px",
+                        border: "1px solid var(--accent-primary)"
+                    }}>
+                        <p style={{color: "var(--accent-primary)", fontSize: "1.2rem", fontWeight: "bold"}}>
+                            {successMessage}
+                        </p>
+                    </div>
+                )}
+            </div>
+
             <button
                 onClick={handleLogout}
                 style={{

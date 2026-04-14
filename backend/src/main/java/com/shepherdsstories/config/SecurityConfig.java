@@ -13,6 +13,10 @@ import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.context.DelegatingSecurityContextRepository;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -135,13 +139,23 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, CustomOAuth2UserService customOAuth2UserService, org.springframework.security.web.authentication.AuthenticationSuccessHandler oauth2SuccessHandler, org.springframework.security.web.authentication.AuthenticationSuccessHandler formLoginSuccessHandler, org.springframework.security.web.authentication.AuthenticationFailureHandler formLoginFailureHandler) {
+    public SecurityContextRepository securityContextRepository() {
+        return new DelegatingSecurityContextRepository(
+                new RequestAttributeSecurityContextRepository(),
+                new HttpSessionSecurityContextRepository()
+        );
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http, CustomOAuth2UserService customOAuth2UserService, CustomOidcUserService customOidcUserService, org.springframework.security.web.authentication.AuthenticationSuccessHandler oauth2SuccessHandler, org.springframework.security.web.authentication.AuthenticationSuccessHandler formLoginSuccessHandler, org.springframework.security.web.authentication.AuthenticationFailureHandler formLoginFailureHandler, SecurityContextRepository securityContextRepository) {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(withDefaults())
+                .securityContext(context -> context.securityContextRepository(securityContextRepository))
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers("/api/auth/**", "/oauth2/**").permitAll();
                     auth.requestMatchers("/api/missionary/**").hasAuthority("MISSIONARY");
+                    auth.requestMatchers("/api/supporter/**").hasAnyAuthority("SUPPORTER", "MISSIONARY");
                     auth.anyRequest().authenticated();
                 })
                 .formLogin(form -> form
@@ -155,7 +169,8 @@ public class SecurityConfig {
                                 response.setStatus(HttpServletResponse.SC_OK)))
                 .oauth2Login(oauth -> oauth
                         .userInfoEndpoint(userInfo -> userInfo
-                                .userService(customOAuth2UserService))
+                                .userService(customOAuth2UserService)
+                                .oidcUserService(customOidcUserService))
                         .successHandler(oauth2SuccessHandler)
                 )
                 .build();
