@@ -164,9 +164,13 @@ public class CommentController {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(java.util.Map.of(ERROR_KEY, "Comment does not belong to this post."));
             }
 
-            if (!comment.getUser().getId().equals(user.getId())) {
-                logger.warn("User {} attempted to delete comment {} owned by {}", user.getEmail(), commentId, comment.getUser().getEmail());
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of(ERROR_KEY, "You can only delete your own comments."));
+            boolean isCommentOwner = comment.getUser().getId().equals(user.getId());
+            boolean isPostOwner = comment.getPost().getAuthor().getUser().getId().equals(user.getId());
+
+            if (!isCommentOwner && !isPostOwner) {
+                logger.warn("User {} attempted to delete comment {} owned by {} on post owned by {}",
+                        user.getEmail(), commentId, comment.getUser().getEmail(), comment.getPost().getAuthor().getUser().getEmail());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of(ERROR_KEY, "You can only delete your own comments or comments on your own post."));
             }
 
             if (commentRepository.existsByParentComment(comment)) {

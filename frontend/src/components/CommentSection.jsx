@@ -1,6 +1,6 @@
 import {useState, useEffect} from "react";
 
-export const CommentSection = ({postId}) => {
+export const CommentSection = ({postId, postAuthorId}) => {
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState("");
     const [loading, setLoading] = useState(true);
@@ -128,6 +128,7 @@ export const CommentSection = ({postId}) => {
 
     const renderComment = (comment, depth = 0) => {
         const canEdit = String(comment.userId) === String(currentUserId);
+        const canDelete = canEdit || String(postAuthorId) === String(currentUserId);
         const isEditing = editingCommentId === comment.id;
         const isReplying = replyingToCommentId === comment.id;
         const replies = getReplies(comment.id);
@@ -199,19 +200,21 @@ export const CommentSection = ({postId}) => {
                                             }}
                                         >Edit
                                         </button>
-                                        <button
-                                            onClick={() => handleDelete(comment.id)}
-                                            style={{
-                                                background: "none",
-                                                border: "none",
-                                                color: "red",
-                                                fontSize: "0.7rem",
-                                                cursor: "pointer",
-                                                padding: 0
-                                            }}
-                                        >Delete
-                                        </button>
                                     </>
+                                )}
+                                {canDelete && !isEditing && !comment.isDeleted && (
+                                    <button
+                                        onClick={() => handleDelete(comment.id)}
+                                        style={{
+                                            background: "none",
+                                            border: "none",
+                                            color: "red",
+                                            fontSize: "0.7rem",
+                                            cursor: "pointer",
+                                            padding: 0
+                                        }}
+                                    >Delete
+                                    </button>
                                 )}
                             </div>
                         </div>

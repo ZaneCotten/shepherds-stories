@@ -426,7 +426,7 @@ export const MissionaryView = () => {
                                     </button>
                                 </div>
                                 <p style={{color: "var(--text)", whiteSpace: "pre-wrap"}}>{post.content}</p>
-                                <CommentSection postId={post.id}/>
+                                <CommentSection postId={post.id} postAuthorId={post.authorId}/>
                             </div>
                         ))}
                     </div>

@@ -387,10 +387,28 @@ class CommentControllerTest {
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
 
-        // Attempting to delete missionary's comment as a supporter
+        // Attempting to delete missionary's comment as a supporter who is not post author
         ResponseEntity<?> response = controller.deleteComment(post.getId(), commentId, supporterAuth);
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
         verify(commentRepository, never()).delete(any());
+    }
+
+    @Test
+    void deleteComment_PostAuthorSuccess() {
+        UUID commentId = UUID.randomUUID();
+        Comment comment = new Comment();
+        comment.setId(commentId);
+        comment.setPost(post);
+        comment.setUser(supporterUser);
+
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+        when(commentRepository.existsByParentComment(comment)).thenReturn(false);
+
+        // Post author (missionaryAuth) deleting a supporter's comment on their post
+        ResponseEntity<?> response = controller.deleteComment(post.getId(), commentId, missionaryAuth);
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        verify(commentRepository).delete(comment);
     }
 }
