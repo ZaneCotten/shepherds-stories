@@ -8,10 +8,18 @@ import com.shepherdsstories.data.repositories.PostLikeRepository;
 import com.shepherdsstories.data.repositories.PostRepository;
 import com.shepherdsstories.data.repositories.SupporterProfileRepository;
 import com.shepherdsstories.data.repositories.UserRepository;
+import com.shepherdsstories.data.repositories.MediaRepository;
+import com.shepherdsstories.dtos.MediaDTO;
 import com.shepherdsstories.dtos.PostDTO;
-import com.shepherdsstories.entities.*;
+import com.shepherdsstories.entities.User;
+import com.shepherdsstories.entities.Post;
+import com.shepherdsstories.entities.MissionaryProfile;
+import com.shepherdsstories.entities.PostLike;
+import com.shepherdsstories.entities.PostLikeId;
+import com.shepherdsstories.entities.Media;
 import com.shepherdsstories.exceptions.ResourceNotFoundException;
 import com.shepherdsstories.exceptions.UnauthenticatedException;
+import com.shepherdsstories.services.S3Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -36,17 +44,23 @@ public class PostController {
     private final SupporterProfileRepository supporterProfileRepository;
     private final UserRepository userRepository;
     private final PostLikeRepository postLikeRepository;
+    private final MediaRepository mediaRepository;
+    private final S3Service s3Service;
 
     public PostController(PostRepository postRepository,
                           MissionaryProfileRepository missionaryProfileRepository,
                           SupporterProfileRepository supporterProfileRepository,
                           UserRepository userRepository,
-                          PostLikeRepository postLikeRepository) {
+                          PostLikeRepository postLikeRepository,
+                          MediaRepository mediaRepository,
+                          S3Service s3Service) {
         this.postRepository = postRepository;
         this.missionaryProfileRepository = missionaryProfileRepository;
         this.supporterProfileRepository = supporterProfileRepository;
         this.userRepository = userRepository;
         this.postLikeRepository = postLikeRepository;
+        this.mediaRepository = mediaRepository;
+        this.s3Service = s3Service;
     }
 
     @PostMapping
@@ -61,6 +75,8 @@ public class PostController {
             MissionaryProfile missionary = missionaryProfileRepository.findById(user.getId())
                     .orElseThrow(() -> new ResourceNotFoundException("Missionary profile not found"));
 
+            validatePostRequirements(postDTO);
+
             Post post = new Post();
             post.setTitle(postDTO.getTitle());
             post.setContent(postDTO.getContent());
@@ -69,7 +85,11 @@ public class PostController {
             post.setUpdatedAt(OffsetDateTime.now());
 
             Post savedPost = postRepository.save(post);
+            savePostMedia(savedPost, postDTO.getMedia());
+
             return ResponseEntity.ok(convertToDTO(savedPost, user));
+        } catch (IllegalArgumentException _) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         } catch (UnauthenticatedException _) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         } catch (ResourceNotFoundException _) {
@@ -138,12 +158,16 @@ public class PostController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
 
+            validatePostUpdate(post, postDTO);
+
             post.setTitle(postDTO.getTitle());
             post.setContent(postDTO.getContent());
             post.setUpdatedAt(OffsetDateTime.now());
 
             Post updatedPost = postRepository.save(post);
             return ResponseEntity.ok(convertToDTO(updatedPost, user));
+        } catch (IllegalArgumentException _) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         } catch (UnauthenticatedException _) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         } catch (ResourceNotFoundException _) {
@@ -188,11 +212,85 @@ public class PostController {
         }
     }
 
+    @GetMapping("/upload-url")
+    public ResponseEntity<MediaDTO> getUploadUrl(@RequestParam String fileName, @RequestParam String contentType, Authentication authentication) {
+        try {
+            User user = getCurrentUser(authentication);
+            if (user.getRole() != Role.MISSIONARY) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+
+            String s3Key = "posts/" + user.getId() + "/" + UUID.randomUUID() + "-" + fileName;
+            String uploadUrl = s3Service.generateUploadUrl(s3Key, contentType);
+
+            MediaDTO response = MediaDTO.builder()
+                    .s3Key(s3Key)
+                    .url(uploadUrl)
+                    .fileName(fileName)
+                    .build();
+
+            return ResponseEntity.ok(response);
+        } catch (UnauthenticatedException _) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        } catch (Throwable t) {
+            logger.error("Error generating upload URL", t);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    private void validatePostRequirements(PostDTO postDTO) {
+        if (postDTO.getTitle() == null || postDTO.getTitle().isBlank()) {
+            throw new IllegalArgumentException("Title is mandatory");
+        }
+        boolean hasContent = postDTO.getContent() != null && !postDTO.getContent().isBlank();
+        boolean hasMedia = postDTO.getMedia() != null && !postDTO.getMedia().isEmpty();
+        if (!hasContent && !hasMedia) {
+            throw new IllegalArgumentException("Title must be paired with either content or a media file");
+        }
+    }
+
+    private void validatePostUpdate(Post post, PostDTO postDTO) {
+        if (postDTO.getTitle() == null || postDTO.getTitle().isBlank()) {
+            throw new IllegalArgumentException("Title is mandatory");
+        }
+        boolean hasContent = postDTO.getContent() != null && !postDTO.getContent().isBlank();
+        boolean hasMedia = !post.getMedia().isEmpty();
+        if (!hasContent && !hasMedia) {
+            throw new IllegalArgumentException("Title must be paired with either content or a media file");
+        }
+    }
+
+    private void savePostMedia(Post post, List<MediaDTO> mediaDTOs) {
+        if (mediaDTOs == null) return;
+        for (MediaDTO mDto : mediaDTOs) {
+            Media media = new Media();
+            media.setPost(post);
+            media.setS3Key(mDto.getS3Key());
+            media.setBucketName(s3Service.getBucketName());
+            media.setFileName(mDto.getFileName());
+            media.setMediaType(mDto.getMediaType());
+            media.setOrderNumber(mDto.getOrderNumber() != null ? mDto.getOrderNumber() : 0);
+            mediaRepository.save(media);
+            post.getMedia().add(media);
+        }
+    }
+
     private PostDTO convertToDTO(Post post, User currentUser) {
         long likeCount = postLikeRepository.countByPostId(post.getId());
         boolean liked = currentUser != null && postLikeRepository.existsByPostIdAndUserId(post.getId(), currentUser.getId());
 
         String lastLikerName = resolveLastLikerName(post.getId(), currentUser);
+
+        List<MediaDTO> mediaDTOs = post.getMedia().stream()
+                .map(m -> MediaDTO.builder()
+                        .id(m.getId())
+                        .fileName(m.getFileName())
+                        .mediaType(m.getMediaType())
+                        .orderNumber(m.getOrderNumber())
+                        .s3Key(m.getS3Key())
+                        .url(s3Service.generatePresignedUrl(m.getS3Key()))
+                        .build())
+                .collect(Collectors.toList());
 
         return PostDTO.builder()
                 .id(post.getId())
@@ -205,6 +303,7 @@ public class PostController {
                 .likeCount(likeCount)
                 .liked(liked)
                 .lastLikerName(lastLikerName)
+                .media(mediaDTOs)
                 .build();
     }
 

@@ -9,6 +9,7 @@ export const MissionaryView = () => {
     const [error, setError] = useState(null);
     const [newPostTitle, setNewPostTitle] = useState("");
     const [newPostContent, setNewPostContent] = useState("");
+    const [attachedFiles, setAttachedFiles] = useState([]);
     const [postLoading, setPostLoading] = useState(false);
     const [editingPost, setEditingPost] = useState(null);
 
@@ -108,12 +109,71 @@ export const MissionaryView = () => {
         window.location.href = "/home";
     };
 
+    const handleFileChange = (e) => {
+        const files = Array.from(e.target.files);
+        setAttachedFiles(prev => [...prev, ...files]);
+    };
+
+    const removeFile = (index) => {
+        setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const uploadFile = async (file) => {
+        // 1. Get Presigned URL
+        const urlParams = new URLSearchParams({
+            fileName: file.name,
+            contentType: file.type
+        });
+        const urlResponse = await fetch(`/api/posts/upload-url?${urlParams.toString()}`);
+        if (!urlResponse.ok) throw new Error("Failed to get upload URL");
+        const {url, s3Key} = await urlResponse.json();
+
+        // 2. Upload to S3
+        const uploadResponse = await fetch(url, {
+            method: 'PUT',
+            body: file,
+            headers: {
+                'Content-Type': file.type
+            }
+        });
+        if (!uploadResponse.ok) throw new Error("Failed to upload file to S3");
+
+        // 3. Determine Media Type
+        let mediaType = "DOCUMENT";
+        if (file.type.startsWith("image/")) mediaType = "IMAGE";
+        else if (file.type.startsWith("video/")) mediaType = "VIDEO";
+        else if (file.type.startsWith("audio/")) mediaType = "AUDIO";
+
+        return {
+            s3Key,
+            fileName: file.name,
+            mediaType,
+            orderNumber: 0
+        };
+    };
+
     const handleCreatePost = async (e) => {
         e.preventDefault();
-        if (!newPostTitle || !newPostContent) return;
+        const trimmedTitle = newPostTitle.trim();
+        if (!trimmedTitle) {
+            alert("Title is mandatory.");
+            return;
+        }
+        const hasContent = newPostContent.trim();
+        const hasMedia = attachedFiles.length > 0 || (editingPost && editingPost.media && editingPost.media.length > 0);
+
+        if (!hasContent && !hasMedia) {
+            alert("Title must be paired with either content or a media file.");
+            return;
+        }
 
         setPostLoading(true);
         try {
+            let media = [];
+            if (!editingPost && attachedFiles.length > 0) {
+                media = await Promise.all(attachedFiles.map(file => uploadFile(file)));
+            }
+
             const url = editingPost ? `/api/posts/${editingPost.id}` : "/api/posts";
             const method = editingPost ? "PUT" : "POST";
             const response = await fetch(url, {
@@ -123,7 +183,8 @@ export const MissionaryView = () => {
                 },
                 body: JSON.stringify({
                     title: newPostTitle,
-                    content: newPostContent
+                    content: newPostContent,
+                    media: media
                 })
             });
 
@@ -136,11 +197,13 @@ export const MissionaryView = () => {
                 }
                 setNewPostTitle("");
                 setNewPostContent("");
+                setAttachedFiles([]);
                 setEditingPost(null);
             } else {
                 alert(`Failed to ${editingPost ? 'update' : 'create'} post.`);
             }
         } catch (err) {
+            console.error("Post creation error:", err);
             alert(`Error ${editingPost ? 'updating' : 'creating'} post: ${err.message}`);
         } finally {
             setPostLoading(false);
@@ -317,9 +380,62 @@ export const MissionaryView = () => {
                     {editingPost ? "Edit Update" : "Post an Update"}
                 </h2>
                 <form onSubmit={handleCreatePost} style={{display: "flex", flexDirection: "column", gap: "10px"}}>
+                    {!editingPost && (
+                        <div style={{display: "flex", flexDirection: "column", gap: "10px", marginBottom: "5px"}}>
+                            <label style={{
+                                padding: "10px",
+                                borderRadius: "8px",
+                                border: "1px dashed var(--border-input)",
+                                backgroundColor: "var(--bg-input)",
+                                color: "var(--text-h)",
+                                cursor: "pointer",
+                                textAlign: "center",
+                                display: "block",
+                                fontWeight: "bold"
+                            }}>
+                                Choose Files
+                                <input
+                                    type="file"
+                                    multiple
+                                    onChange={handleFileChange}
+                                    style={{display: "none"}}
+                                />
+                            </label>
+                            {attachedFiles.length > 0 && (
+                                <div style={{display: "flex", flexWrap: "wrap", gap: "5px"}}>
+                                    {attachedFiles.map((file, index) => (
+                                        <div key={index} style={{
+                                            backgroundColor: "var(--accent-muted)",
+                                            padding: "2px 8px",
+                                            borderRadius: "4px",
+                                            fontSize: "0.8rem",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "5px"
+                                        }}>
+                                            <span style={{color: "var(--text-h)"}}>{file.name}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeFile(index)}
+                                                style={{
+                                                    border: "none",
+                                                    background: "none",
+                                                    cursor: "pointer",
+                                                    color: "red",
+                                                    fontWeight: "bold"
+                                                }}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                     <input
                         type="text"
-                        placeholder="Title"
+                        placeholder="Title (mandatory)"
                         value={newPostTitle}
                         onChange={(e) => setNewPostTitle(e.target.value)}
                         required
@@ -332,10 +448,9 @@ export const MissionaryView = () => {
                         }}
                     />
                     <textarea
-                        placeholder="Content"
+                        placeholder="Content (optional if media is present)"
                         value={newPostContent}
                         onChange={(e) => setNewPostContent(e.target.value)}
-                        required
                         style={{
                             padding: "10px",
                             borderRadius: "8px",
@@ -403,7 +518,54 @@ export const MissionaryView = () => {
                                 borderRadius: "12px",
                                 border: "1px solid var(--border-input)"
                             }}>
-                                <h3 style={{color: "var(--text-h)", marginBottom: "5px"}}>{post.title}</h3>
+                                {post.title &&
+                                    <h3 style={{color: "var(--text-h)", marginBottom: "5px"}}>{post.title}</h3>}
+                                {post.media && post.media.length > 0 && (
+                                    <div style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: "10px",
+                                        marginBottom: "10px",
+                                        marginTop: "10px"
+                                    }}>
+                                        {post.media.map(m => (
+                                            <div key={m.id} style={{width: "100%"}}>
+                                                {m.mediaType === "IMAGE" && (
+                                                    <img src={m.url} alt={m.fileName} style={{
+                                                        width: "100%",
+                                                        borderRadius: "8px",
+                                                        maxHeight: "300px",
+                                                        objectFit: "cover"
+                                                    }}/>
+                                                )}
+                                                {m.mediaType === "VIDEO" && (
+                                                    <video controls src={m.url} style={{
+                                                        width: "100%",
+                                                        borderRadius: "8px",
+                                                        maxHeight: "300px"
+                                                    }}/>
+                                                )}
+                                                {m.mediaType === "AUDIO" && (
+                                                    <audio controls src={m.url} style={{width: "100%"}}/>
+                                                )}
+                                                {m.mediaType === "DOCUMENT" && (
+                                                    <a href={m.url} target="_blank" rel="noreferrer" style={{
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        gap: "10px",
+                                                        padding: "10px",
+                                                        backgroundColor: "var(--bg-input)",
+                                                        borderRadius: "8px",
+                                                        textDecoration: "none",
+                                                        color: "var(--accent)"
+                                                    }}>
+                                                        📎 {m.fileName}
+                                                    </a>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                                 <div style={{
                                     display: "flex",
                                     justifyContent: "space-between",
@@ -439,11 +601,13 @@ export const MissionaryView = () => {
                                         Edit
                                     </button>
                                 </div>
-                                <p style={{
-                                    color: "var(--text)",
-                                    whiteSpace: "pre-wrap",
-                                    marginBottom: "20px"
-                                }}>{post.content}</p>
+                                {post.content && (
+                                    <p style={{
+                                        color: "var(--text)",
+                                        whiteSpace: "pre-wrap",
+                                        marginBottom: "20px"
+                                    }}>{post.content}</p>
+                                )}
 
                                 <CommentSection postId={post.id} postAuthorId={post.authorId}/>
 

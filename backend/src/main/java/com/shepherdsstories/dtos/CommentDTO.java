@@ -23,7 +23,7 @@ public class CommentDTO {
     private OffsetDateTime updatedAt;
     private Boolean edited;
     private Boolean isDeleted;
-    private long likeCount;
-    private boolean liked;
+    private Long likeCount;
+    private Boolean liked;
     private String lastLikerName;
 }

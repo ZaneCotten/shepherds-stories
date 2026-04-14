@@ -175,7 +175,54 @@ export const SupporterView = () => {
                                     marginBottom: "10px"
                                 }}>
                                     <div>
-                                        <h3 style={{color: "var(--text-h)", margin: 0}}>{post.title}</h3>
+                                        {post.title &&
+                                            <h3 style={{color: "var(--text-h)", margin: 0}}>{post.title}</h3>}
+                                        {post.media && post.media.length > 0 && (
+                                            <div style={{
+                                                display: "flex",
+                                                flexDirection: "column",
+                                                gap: "10px",
+                                                marginBottom: "10px",
+                                                marginTop: "10px"
+                                            }}>
+                                                {post.media.map(m => (
+                                                    <div key={m.id} style={{width: "100%"}}>
+                                                        {m.mediaType === "IMAGE" && (
+                                                            <img src={m.url} alt={m.fileName} style={{
+                                                                width: "100%",
+                                                                borderRadius: "8px",
+                                                                maxHeight: "300px",
+                                                                objectFit: "cover"
+                                                            }}/>
+                                                        )}
+                                                        {m.mediaType === "VIDEO" && (
+                                                            <video controls src={m.url} style={{
+                                                                width: "100%",
+                                                                borderRadius: "8px",
+                                                                maxHeight: "300px"
+                                                            }}/>
+                                                        )}
+                                                        {m.mediaType === "AUDIO" && (
+                                                            <audio controls src={m.url} style={{width: "100%"}}/>
+                                                        )}
+                                                        {m.mediaType === "DOCUMENT" && (
+                                                            <a href={m.url} target="_blank" rel="noreferrer" style={{
+                                                                display: "flex",
+                                                                alignItems: "center",
+                                                                gap: "10px",
+                                                                padding: "10px",
+                                                                backgroundColor: "var(--bg-input)",
+                                                                borderRadius: "8px",
+                                                                textDecoration: "none",
+                                                                color: "var(--accent)"
+                                                            }}>
+                                                                📎 {m.fileName}
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                         <p style={{color: "var(--accent)", fontWeight: "bold", fontSize: "0.9rem"}}>
                                             {post.authorName}
                                         </p>
@@ -195,11 +242,13 @@ export const SupporterView = () => {
                                         )}
                                     </p>
                                 </div>
-                                <p style={{
-                                    color: "var(--text)",
-                                    whiteSpace: "pre-wrap",
-                                    marginBottom: "20px"
-                                }}>{post.content}</p>
+                                {post.content && (
+                                    <p style={{
+                                        color: "var(--text)",
+                                        whiteSpace: "pre-wrap",
+                                        marginBottom: "20px"
+                                    }}>{post.content}</p>
+                                )}
 
                                 <CommentSection postId={post.id} postAuthorId={post.authorId}/>
 
