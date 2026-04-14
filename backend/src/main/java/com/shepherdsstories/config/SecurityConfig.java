@@ -141,6 +141,7 @@ public class SecurityConfig {
                 .cors(withDefaults())
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers("/api/auth/**", "/oauth2/**").permitAll();
+                    auth.requestMatchers("/api/missionary/**").hasAuthority("MISSIONARY");
                     auth.anyRequest().authenticated();
                 })
                 .formLogin(form -> form

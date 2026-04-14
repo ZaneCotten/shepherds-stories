@@ -1,6 +1,5 @@
 package com.shepherdsstories.entities;
 
-import com.shepherdsstories.utils.CodeGenerator;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -51,13 +50,6 @@ public class MissionaryProfile {
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
-
-    @PrePersist
-    public void generateReferenceNumber() {
-        if (this.referenceNumber == null) {
-            this.referenceNumber = CodeGenerator.generateReference(16);
-        }
-    }
 
 
 }

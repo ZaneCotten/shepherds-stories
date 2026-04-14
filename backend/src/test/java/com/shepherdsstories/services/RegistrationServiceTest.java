@@ -2,10 +2,12 @@ package com.shepherdsstories.services;
 
 import com.shepherdsstories.data.enums.AuthProvider;
 import com.shepherdsstories.data.enums.Role;
+import com.shepherdsstories.data.repositories.InviteCodeRepository;
 import com.shepherdsstories.data.repositories.MissionaryProfileRepository;
 import com.shepherdsstories.data.repositories.SupporterProfileRepository;
 import com.shepherdsstories.data.repositories.UserRepository;
 import com.shepherdsstories.dtos.RegistrationRequestDTO;
+import com.shepherdsstories.entities.InviteCode;
 import com.shepherdsstories.entities.MissionaryProfile;
 import com.shepherdsstories.entities.SupporterProfile;
 import com.shepherdsstories.entities.User;
@@ -30,6 +32,8 @@ class RegistrationServiceTest {
     @Mock
     private SupporterProfileRepository supporterProfileRepository;
     @Mock
+    private InviteCodeRepository inviteCodeRepository;
+    @Mock
     private UserFactory userFactory;
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -42,6 +46,7 @@ class RegistrationServiceTest {
                 userRepository,
                 missionaryProfileRepository,
                 supporterProfileRepository,
+                inviteCodeRepository,
                 userFactory,
                 passwordEncoder
         );
@@ -61,15 +66,20 @@ class RegistrationServiceTest {
         MissionaryProfile profile = new MissionaryProfile();
         profile.setUser(user);
 
+        InviteCode inviteCode = new InviteCode();
+        inviteCode.setMissionary(profile);
+
         when(userFactory.createBaseUser(dto)).thenReturn(user);
         when(passwordEncoder.encode(dto.getPassword())).thenReturn("hashed_password");
         when(userRepository.save(any(User.class))).thenReturn(user);
         when(userFactory.createMissionary(user, dto)).thenReturn(profile);
+        when(userFactory.createInviteCode(profile)).thenReturn(inviteCode);
 
         registrationService.register(dto);
 
         verify(userRepository).save(user);
         verify(missionaryProfileRepository).save(profile);
+        verify(inviteCodeRepository).save(inviteCode);
         verify(supporterProfileRepository, never()).save(any());
     }
 
@@ -113,14 +123,19 @@ class RegistrationServiceTest {
         MissionaryProfile profile = new MissionaryProfile();
         profile.setUser(user);
 
+        InviteCode inviteCode = new InviteCode();
+        inviteCode.setMissionary(profile);
+
         when(userFactory.createBaseUser(dto)).thenReturn(user);
         when(userRepository.save(any(User.class))).thenReturn(user);
         when(userFactory.createMissionary(user, dto)).thenReturn(profile);
+        when(userFactory.createInviteCode(profile)).thenReturn(inviteCode);
 
         registrationService.registerSocial(dto, oauthId, AuthProvider.GOOGLE);
 
         verify(userRepository).save(user);
         verify(missionaryProfileRepository).save(profile);
+        verify(inviteCodeRepository).save(inviteCode);
         verify(supporterProfileRepository, never()).save(any());
     }
 

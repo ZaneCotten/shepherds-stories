@@ -66,7 +66,15 @@ public class RegistrationController {
         }
 
         registrationService.register(request);
+        authenticateUser(request.getEmail(), request.getRole().name());
         return ResponseEntity.ok("User registered successfully");
+    }
+
+    private void authenticateUser(String email, String role) {
+        org.springframework.security.authentication.UsernamePasswordAuthenticationToken token =
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        email, null, java.util.Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority(role)));
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(token);
     }
 
     @PostMapping("/register-social")
@@ -118,6 +126,7 @@ public class RegistrationController {
         dto.setLastName(familyName);
 
         registrationService.registerSocial(dto, oauthId, provider);
+        authenticateUser(email, role.name());
 
         return ResponseEntity.ok("User registered successfully");
     }

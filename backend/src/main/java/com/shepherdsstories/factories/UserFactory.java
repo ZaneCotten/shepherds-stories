@@ -1,12 +1,16 @@
 package com.shepherdsstories.factories;
 
 import com.shepherdsstories.dtos.RegistrationRequestDTO;
+import com.shepherdsstories.entities.InviteCode;
 import com.shepherdsstories.entities.MissionaryProfile;
 import com.shepherdsstories.entities.SupporterProfile;
 import com.shepherdsstories.entities.User;
+import com.shepherdsstories.utils.CodeGenerator;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
+
+import static com.shepherdsstories.utils.ValidationConstants.REF_CODE_LENGTH;
 
 @Component
 public class UserFactory {
@@ -71,8 +75,18 @@ public class UserFactory {
         profile.setBiography(dto.getBiography());
         profile.setCreatedAt(OffsetDateTime.now());
         profile.setIsReferenceDisabled(false);
-        // Reference number is handled by @PrePersist in your entity
+        profile.setReferenceNumber(CodeGenerator.generateReference(REF_CODE_LENGTH));
+        // The unique reference number is also stored in a separate InviteCode entity.
         return profile;
+    }
+
+    public InviteCode createInviteCode(MissionaryProfile profile) {
+        InviteCode inviteCode = new InviteCode();
+        inviteCode.setMissionary(profile);
+        inviteCode.setCodeString(CodeGenerator.generateReference(REF_CODE_LENGTH));
+        inviteCode.setIsActive(true);
+        inviteCode.setCreatedAt(OffsetDateTime.now());
+        return inviteCode;
     }
 
     public SupporterProfile createSupporter(User user, RegistrationRequestDTO dto) {
