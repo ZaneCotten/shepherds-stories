@@ -2,13 +2,11 @@ package com.shepherdsstories.controllers;
 
 import com.shepherdsstories.data.enums.RequestStatus;
 import com.shepherdsstories.data.repositories.ConnectionRepository;
+import com.shepherdsstories.data.repositories.InviteCodeRepository;
 import com.shepherdsstories.data.repositories.MissionaryProfileRepository;
 import com.shepherdsstories.data.repositories.UserRepository;
 import com.shepherdsstories.dtos.MissionaryProfileDTO;
-import com.shepherdsstories.entities.ConnectionRequest;
-import com.shepherdsstories.entities.MissionaryProfile;
-import com.shepherdsstories.entities.SupporterProfile;
-import com.shepherdsstories.entities.User;
+import com.shepherdsstories.entities.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,16 +19,11 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class MissionaryProfileControllerTest {
@@ -44,11 +37,14 @@ class MissionaryProfileControllerTest {
     @Mock
     private ConnectionRepository connectionRepository;
 
+    @Mock
+    private InviteCodeRepository inviteCodeRepository;
+
     private MissionaryProfileController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new MissionaryProfileController(missionaryProfileRepository, userRepository, connectionRepository);
+        controller = new MissionaryProfileController(missionaryProfileRepository, userRepository, connectionRepository, inviteCodeRepository);
     }
 
     @Test
@@ -228,6 +224,39 @@ class MissionaryProfileControllerTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(true, profile.getIsReferenceDisabled()); // Should become true because !null -> !false (auto-unboxed or handled)
         verify(missionaryProfileRepository).save(profile);
+    }
+
+    @Test
+    void generateNewInviteCode_Success() {
+        String email = "missionary@example.com";
+        UUID userId = UUID.randomUUID();
+
+        User user = new User();
+        user.setId(userId);
+        user.setEmail(email);
+
+        MissionaryProfile profile = new MissionaryProfile();
+        profile.setId(userId);
+        profile.setReferenceNumber("OLD_CODE");
+        profile.setInviteCodes(new ArrayList<>());
+
+        setupAuth(email);
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(missionaryProfileRepository.findById(userId)).thenReturn(Optional.of(profile));
+
+        ResponseEntity<Map<String, String>> response = controller.generateNewInviteCode();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        Map<String, String> body = response.getBody();
+        assertNotNull(body);
+        String newCode = body.get("newCode");
+        assertNotNull(newCode);
+        assertEquals(16, newCode.length());
+        assertNotEquals("OLD_CODE", newCode);
+        assertEquals(newCode, profile.getReferenceNumber());
+
+        verify(missionaryProfileRepository).save(profile);
+        verify(inviteCodeRepository).save(any(InviteCode.class));
     }
 
     private void setupAuth(String email) {

@@ -61,6 +61,27 @@ export const MissionaryView = () => {
         }
     };
 
+    const handleGenerateNewCode = async () => {
+        if (!window.confirm("Are you sure you want to generate a new invite code? The old one will no longer work.")) {
+            return;
+        }
+
+        try {
+            const response = await fetch("/api/missionary/profile/generate-code", {
+                method: 'POST'
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setProfile(prev => ({...prev, referenceNumber: data.newCode}));
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                alert(`Failed to generate new code: ${errorData.error || response.statusText}`);
+            }
+        } catch (err) {
+            alert(`Error generating new code: ${err.message}`);
+        }
+    };
+
     const handleLogout = () => {
         localStorage.removeItem("user");
         window.location.href = "/home";
@@ -103,21 +124,36 @@ export const MissionaryView = () => {
                 }}>
                     {profile?.referenceNumber}
                 </p>
-                <button
-                    onClick={handleToggleReference}
-                    style={{
-                        marginTop: "15px",
-                        padding: "5px 15px",
-                        borderRadius: "6px",
-                        backgroundColor: profile?.isReferenceDisabled ? "var(--accent)" : "transparent",
-                        color: profile?.isReferenceDisabled ? "white" : "var(--text-muted)",
-                        border: profile?.isReferenceDisabled ? "none" : "1px solid var(--border-input)",
-                        cursor: "pointer",
-                        fontSize: "0.8rem"
-                    }}
-                >
-                    {profile?.isReferenceDisabled ? "Enable Invite Code" : "Disable Invite Code"}
-                </button>
+                <div style={{display: "flex", gap: "10px", justifyContent: "center", marginTop: "15px"}}>
+                    <button
+                        onClick={handleToggleReference}
+                        style={{
+                            padding: "5px 15px",
+                            borderRadius: "6px",
+                            backgroundColor: profile?.isReferenceDisabled ? "var(--accent)" : "transparent",
+                            color: profile?.isReferenceDisabled ? "white" : "var(--text-muted)",
+                            border: profile?.isReferenceDisabled ? "none" : "1px solid var(--border-input)",
+                            cursor: "pointer",
+                            fontSize: "0.8rem"
+                        }}
+                    >
+                        {profile?.isReferenceDisabled ? "Enable Invite Code" : "Disable Invite Code"}
+                    </button>
+                    <button
+                        onClick={handleGenerateNewCode}
+                        style={{
+                            padding: "5px 15px",
+                            borderRadius: "6px",
+                            backgroundColor: "transparent",
+                            color: "var(--text-muted)",
+                            border: "1px solid var(--border-input)",
+                            cursor: "pointer",
+                            fontSize: "0.8rem"
+                        }}
+                    >
+                        Generate New Code
+                    </button>
+                </div>
             </div>
 
             {requests.length > 0 && (

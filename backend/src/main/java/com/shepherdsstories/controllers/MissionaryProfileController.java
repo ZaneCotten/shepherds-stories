@@ -2,14 +2,18 @@ package com.shepherdsstories.controllers;
 
 import com.shepherdsstories.data.enums.RequestStatus;
 import com.shepherdsstories.data.repositories.ConnectionRepository;
+import com.shepherdsstories.data.repositories.InviteCodeRepository;
 import com.shepherdsstories.data.repositories.MissionaryProfileRepository;
 import com.shepherdsstories.data.repositories.UserRepository;
 import com.shepherdsstories.dtos.MissionaryProfileDTO;
 import com.shepherdsstories.entities.ConnectionRequest;
+import com.shepherdsstories.entities.InviteCode;
 import com.shepherdsstories.entities.MissionaryProfile;
 import com.shepherdsstories.entities.User;
 import com.shepherdsstories.exceptions.ResourceNotFoundException;
 import com.shepherdsstories.exceptions.UnauthenticatedException;
+import com.shepherdsstories.utils.CodeGenerator;
+import com.shepherdsstories.utils.ValidationConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -32,17 +36,22 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/missionary")
 public class MissionaryProfileController {
     private static final Logger logger = LoggerFactory.getLogger(MissionaryProfileController.class);
+    private static final String MISSIONARY_PROFILE_NOT_FOUND = "Missionary profile not found";
+    private static final String MESSAGE_KEY = "message";
 
     private final MissionaryProfileRepository missionaryProfileRepository;
     private final UserRepository userRepository;
     private final ConnectionRepository connectionRepository;
+    private final InviteCodeRepository inviteCodeRepository;
 
     public MissionaryProfileController(MissionaryProfileRepository missionaryProfileRepository,
                                        UserRepository userRepository,
-                                       ConnectionRepository connectionRepository) {
+                                       ConnectionRepository connectionRepository,
+                                       InviteCodeRepository inviteCodeRepository) {
         this.missionaryProfileRepository = missionaryProfileRepository;
         this.userRepository = userRepository;
         this.connectionRepository = connectionRepository;
+        this.inviteCodeRepository = inviteCodeRepository;
     }
 
     @GetMapping("/requests")
@@ -88,7 +97,7 @@ public class MissionaryProfileController {
         request.setProcessedAt(OffsetDateTime.now());
         connectionRepository.save(request);
 
-        return ResponseEntity.ok(Map.of("message", approve ? "Approved" : "Denied"));
+        return ResponseEntity.ok(Map.of(MESSAGE_KEY, approve ? "Approved" : "Denied"));
     }
 
     private User getCurrentUser() {
@@ -130,7 +139,7 @@ public class MissionaryProfileController {
             User user = getCurrentUser();
 
             MissionaryProfile profile = missionaryProfileRepository.findById(user.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Missionary profile not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException(MISSIONARY_PROFILE_NOT_FOUND));
 
             MissionaryProfileDTO dto = new MissionaryProfileDTO();
             dto.setMissionaryName(profile.getMissionaryName());
@@ -152,18 +161,57 @@ public class MissionaryProfileController {
         try {
             User user = getCurrentUser();
             MissionaryProfile profile = missionaryProfileRepository.findById(user.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Missionary profile not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException(MISSIONARY_PROFILE_NOT_FOUND));
 
             boolean currentStatus = profile.getIsReferenceDisabled() != null && profile.getIsReferenceDisabled();
             profile.setIsReferenceDisabled(!currentStatus);
             missionaryProfileRepository.save(profile);
 
             return ResponseEntity.ok(Map.of(
-                    "message", profile.getIsReferenceDisabled() ? "Reference code disabled" : "Reference code enabled",
+                    MESSAGE_KEY, profile.getIsReferenceDisabled() ? "Reference code disabled" : "Reference code enabled",
                     "isDisabled", profile.getIsReferenceDisabled()
             ));
         } catch (Exception e) {
             logger.error("Error toggling reference status", e);
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error"));
+        }
+    }
+
+    @PostMapping("/profile/generate-code")
+    @Transactional
+    public ResponseEntity<Map<String, String>> generateNewInviteCode() {
+        try {
+            User user = getCurrentUser();
+            MissionaryProfile profile = missionaryProfileRepository.findById(user.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException(MISSIONARY_PROFILE_NOT_FOUND));
+
+            // Generate new code
+            String newCode = CodeGenerator.generateReference(ValidationConstants.REF_CODE_LENGTH);
+
+            // Update profile's main reference number
+            profile.setReferenceNumber(newCode);
+            missionaryProfileRepository.save(profile);
+
+            // Deactivate old invite codes and create new one
+            if (profile.getInviteCodes() != null) {
+                for (InviteCode oldCode : profile.getInviteCodes()) {
+                    oldCode.setIsActive(false);
+                }
+            }
+
+            InviteCode inviteCode = new InviteCode();
+            inviteCode.setMissionary(profile);
+            inviteCode.setCodeString(newCode);
+            inviteCode.setIsActive(true);
+            inviteCode.setCreatedAt(OffsetDateTime.now());
+            inviteCodeRepository.save(inviteCode);
+
+            return ResponseEntity.ok(Map.of(
+                    MESSAGE_KEY, "New invite code generated successfully",
+                    "newCode", newCode
+            ));
+        } catch (Exception e) {
+            logger.error("Error generating new invite code", e);
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error"));
         }
     }
