@@ -1,12 +1,14 @@
 package com.shepherdsstories.controllers;
 
-import com.shepherdsstories.dtos.RegistrationRequestDTO;
-import com.shepherdsstories.data.enums.Role;
 import com.shepherdsstories.data.enums.AuthProvider;
+import com.shepherdsstories.data.enums.Role;
 import com.shepherdsstories.data.records.RegistrationRequest;
 import com.shepherdsstories.data.repositories.UserRepository;
+import com.shepherdsstories.dtos.RegistrationRequestDTO;
 import com.shepherdsstories.entities.User;
 import com.shepherdsstories.services.RegistrationService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.web.context.SecurityContextRepository;
 
 import java.util.Optional;
 
@@ -31,11 +34,14 @@ class RegistrationControllerTest {
     @Mock
     private RegistrationService registrationService;
 
+    @Mock
+    private SecurityContextRepository securityContextRepository;
+
     private RegistrationController registrationController;
 
     @BeforeEach
     void setUp() {
-        registrationController = new RegistrationController(registrationService, userRepository);
+        registrationController = new RegistrationController(registrationService, userRepository, securityContextRepository);
     }
 
     @Test
@@ -51,7 +57,7 @@ class RegistrationControllerTest {
 
         when(userRepository.findByEmailIgnoreCase("social@example.com")).thenReturn(Optional.empty());
 
-        ResponseEntity<String> response = registrationController.registerSocialUser(request);
+        ResponseEntity<String> response = registrationController.registerSocialUser(request, mock(HttpServletRequest.class), mock(HttpServletResponse.class));
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("User registered successfully", response.getBody());
@@ -71,7 +77,7 @@ class RegistrationControllerTest {
 
         when(userRepository.findByEmailIgnoreCase("supporter_social@example.com")).thenReturn(Optional.empty());
 
-        ResponseEntity<String> response = registrationController.registerSocialUser(request);
+        ResponseEntity<String> response = registrationController.registerSocialUser(request, mock(HttpServletRequest.class), mock(HttpServletResponse.class));
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("User registered successfully", response.getBody());
@@ -89,7 +95,7 @@ class RegistrationControllerTest {
                 "User"
         );
 
-        ResponseEntity<String> response = registrationController.registerSocialUser(request);
+        ResponseEntity<String> response = registrationController.registerSocialUser(request, mock(HttpServletRequest.class), mock(HttpServletResponse.class));
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals("Email is required", response.getBody());
@@ -108,7 +114,7 @@ class RegistrationControllerTest {
 
         when(userRepository.findByEmailIgnoreCase("existing@example.com")).thenReturn(Optional.of(new User()));
 
-        ResponseEntity<String> response = registrationController.registerSocialUser(request);
+        ResponseEntity<String> response = registrationController.registerSocialUser(request, mock(HttpServletRequest.class), mock(HttpServletResponse.class));
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals("User already exists", response.getBody());
@@ -125,7 +131,7 @@ class RegistrationControllerTest {
                 "User"
         );
 
-        ResponseEntity<String> response = registrationController.registerSocialUser(request);
+        ResponseEntity<String> response = registrationController.registerSocialUser(request, mock(HttpServletRequest.class), mock(HttpServletResponse.class));
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals("Invalid role", response.getBody());
@@ -144,7 +150,7 @@ class RegistrationControllerTest {
 
         when(userRepository.findByEmailIgnoreCase("social@example.com")).thenReturn(Optional.empty());
 
-        ResponseEntity<String> response = registrationController.registerSocialUser(request);
+        ResponseEntity<String> response = registrationController.registerSocialUser(request, mock(HttpServletRequest.class), mock(HttpServletResponse.class));
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals("Invalid OAuth provider", response.getBody());
@@ -159,7 +165,7 @@ class RegistrationControllerTest {
 
         when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.empty());
 
-        ResponseEntity<String> response = registrationController.register(dto);
+        ResponseEntity<String> response = registrationController.register(dto, mock(HttpServletRequest.class), mock(HttpServletResponse.class));
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("User registered successfully", response.getBody());
@@ -175,7 +181,7 @@ class RegistrationControllerTest {
 
         when(userRepository.findByEmailIgnoreCase("supporter@example.com")).thenReturn(Optional.empty());
 
-        ResponseEntity<String> response = registrationController.register(dto);
+        ResponseEntity<String> response = registrationController.register(dto, mock(HttpServletRequest.class), mock(HttpServletResponse.class));
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("User registered successfully", response.getBody());
@@ -191,7 +197,7 @@ class RegistrationControllerTest {
 
         when(userRepository.findByEmailIgnoreCase("existing@example.com")).thenReturn(Optional.of(new User()));
 
-        ResponseEntity<String> response = registrationController.register(dto);
+        ResponseEntity<String> response = registrationController.register(dto, mock(HttpServletRequest.class), mock(HttpServletResponse.class));
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals("User already exists", response.getBody());

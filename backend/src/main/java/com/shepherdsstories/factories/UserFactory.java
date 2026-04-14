@@ -1,12 +1,16 @@
 package com.shepherdsstories.factories;
 
 import com.shepherdsstories.dtos.RegistrationRequestDTO;
+import com.shepherdsstories.entities.InviteCode;
 import com.shepherdsstories.entities.MissionaryProfile;
 import com.shepherdsstories.entities.SupporterProfile;
 import com.shepherdsstories.entities.User;
+import com.shepherdsstories.utils.CodeGenerator;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
+
+import static com.shepherdsstories.utils.ValidationConstants.REF_CODE_LENGTH;
 
 @Component
 public class UserFactory {
@@ -63,7 +67,7 @@ public class UserFactory {
         return user;
     }
 
-    public MissionaryProfile createMissionary(User user, RegistrationRequestDTO dto) {
+    public MissionaryProfile createMissionary(User user, RegistrationRequestDTO dto, String referenceNumber) {
         MissionaryProfile profile = new MissionaryProfile();
         profile.setUser(user); // Ties the UUIDs together via @MapsId
         profile.setMissionaryName(defaultMissionaryName(dto.getDisplayName(), dto.getEmail()));
@@ -71,8 +75,18 @@ public class UserFactory {
         profile.setBiography(dto.getBiography());
         profile.setCreatedAt(OffsetDateTime.now());
         profile.setIsReferenceDisabled(false);
-        // Reference number is handled by @PrePersist in your entity
+        profile.setReferenceNumber(referenceNumber);
+        // The unique reference number is also stored in a separate InviteCode entity.
         return profile;
+    }
+
+    public InviteCode createInviteCode(MissionaryProfile profile, String code) {
+        InviteCode inviteCode = new InviteCode();
+        inviteCode.setMissionary(profile);
+        inviteCode.setCodeString(code);
+        inviteCode.setIsActive(true);
+        inviteCode.setCreatedAt(OffsetDateTime.now());
+        return inviteCode;
     }
 
     public SupporterProfile createSupporter(User user, RegistrationRequestDTO dto) {
@@ -80,6 +94,16 @@ public class UserFactory {
         profile.setUser(user);
         profile.setFirstName(defaultFirstName(dto.getFirstName(), dto.getEmail()));
         profile.setLastName(defaultLastName(dto.getLastName()));
+        profile.setCreatedAt(OffsetDateTime.now());
+        profile.setIsVerified(false);
+        return profile;
+    }
+
+    public SupporterProfile createDefaultSupporter(User user) {
+        SupporterProfile profile = new SupporterProfile();
+        profile.setUser(user);
+        profile.setFirstName(fallbackNameFromEmail(user.getEmail(), "Supporter"));
+        profile.setLastName("Account");
         profile.setCreatedAt(OffsetDateTime.now());
         profile.setIsVerified(false);
         return profile;

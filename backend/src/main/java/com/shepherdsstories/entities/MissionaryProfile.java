@@ -1,6 +1,5 @@
 package com.shepherdsstories.entities;
 
-import com.shepherdsstories.utils.CodeGenerator;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -34,7 +33,7 @@ public class MissionaryProfile {
     private String referenceNumber;
 
     @Column(name = "is_reference_disabled", nullable = false)
-    private Boolean isReferenceDisabled;
+    private Boolean isReferenceDisabled = false;
 
     @Column(name = "missionary_name", nullable = false, length = NAME_MAX_LENGTH)
     private String missionaryName;
@@ -49,15 +48,11 @@ public class MissionaryProfile {
     @OrderBy("createdAt DESC") // Shows the newest requests first
     private List<PrayerRequest> prayerRequests = new ArrayList<>();
 
+    @OneToMany(mappedBy = "missionary", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<InviteCode> inviteCodes = new ArrayList<>();
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
-
-    @PrePersist
-    public void generateReferenceNumber() {
-        if (this.referenceNumber == null) {
-            this.referenceNumber = CodeGenerator.generateReference(16);
-        }
-    }
 
 
 }
