@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -65,6 +66,7 @@ public class RegistrationController {
     }
 
     @PostMapping("/register")
+    @Transactional
     public ResponseEntity<String> register(@Valid @RequestBody RegistrationRequestDTO request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         String normalizedEmail = normalizeEmail(request.getEmail());
         request.setEmail(normalizedEmail);
@@ -89,6 +91,7 @@ public class RegistrationController {
     }
 
     @PostMapping("/register-social")
+    @Transactional
     public ResponseEntity<String> registerSocialUser(@RequestBody RegistrationRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         String email = normalizeEmail(request.email());
         if (email == null || email.isBlank()) {

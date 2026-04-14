@@ -1,11 +1,33 @@
-import {useState} from "react";
+import {useState, useEffect} from "react";
 
 export const SupporterView = () => {
     const [inviteCode, setInviteCode] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
     const [error, setError] = useState("");
+    const [feed, setFeed] = useState([]);
+    const [loadingFeed, setLoadingFeed] = useState(true);
 
-    const handleLogout = () => {
+    useEffect(() => {
+        fetch("/api/posts/feed")
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to fetch feed");
+                return res.json();
+            })
+            .then(data => {
+                setFeed(data);
+                setLoadingFeed(false);
+            })
+            .catch(() => {
+                setLoadingFeed(false);
+            });
+    }, []);
+
+    const handleLogout = async () => {
+        try {
+            await fetch("/api/auth/logout", {method: 'POST'});
+        } catch (err) {
+            console.error("Logout error:", err);
+        }
         localStorage.removeItem("user");
         window.location.href = "/home";
     };
@@ -104,6 +126,55 @@ export const SupporterView = () => {
                         <p style={{color: "var(--accent-primary)", fontSize: "1.2rem", fontWeight: "bold"}}>
                             {successMessage}
                         </p>
+                    </div>
+                )}
+            </div>
+
+            <div style={{
+                width: "100%",
+                maxWidth: "600px",
+                marginBottom: "40px"
+            }}>
+                <h2 style={{color: "var(--text-h)", fontSize: "2rem", marginBottom: "20px", textAlign: "center"}}>
+                    Missionary Updates
+                </h2>
+                {loadingFeed ? (
+                    <p style={{textAlign: "center"}}>Loading updates...</p>
+                ) : feed.length === 0 ? (
+                    <p style={{textAlign: "center", color: "var(--text-muted)"}}>
+                        No updates from your connected missionaries yet.
+                    </p>
+                ) : (
+                    <div style={{display: "flex", flexDirection: "column", gap: "20px"}}>
+                        {feed.map(post => (
+                            <div key={post.id} style={{
+                                backgroundColor: "var(--bg-card)",
+                                padding: "20px",
+                                borderRadius: "12px",
+                                border: "1px solid var(--border-input)"
+                            }}>
+                                <div style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "flex-start",
+                                    marginBottom: "10px"
+                                }}>
+                                    <div>
+                                        <h3 style={{color: "var(--text-h)", margin: 0}}>{post.title}</h3>
+                                        <p style={{color: "var(--accent)", fontWeight: "bold", fontSize: "0.9rem"}}>
+                                            {post.authorName}
+                                        </p>
+                                    </div>
+                                    <p style={{color: "var(--text-muted)", fontSize: "0.8rem"}}>
+                                        {new Date(post.createdAt).toLocaleString([], {
+                                            dateStyle: 'short',
+                                            timeStyle: 'short'
+                                        })}
+                                    </p>
+                                </div>
+                                <p style={{color: "var(--text)", whiteSpace: "pre-wrap"}}>{post.content}</p>
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
