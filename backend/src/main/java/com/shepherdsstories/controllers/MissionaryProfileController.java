@@ -164,7 +164,20 @@ public class MissionaryProfileController {
                     .orElseThrow(() -> new ResourceNotFoundException(MISSIONARY_PROFILE_NOT_FOUND));
 
             boolean currentStatus = profile.getIsReferenceDisabled() != null && profile.getIsReferenceDisabled();
-            profile.setIsReferenceDisabled(!currentStatus);
+            boolean newStatus = !currentStatus;
+            profile.setIsReferenceDisabled(newStatus);
+
+            // Update associated invite codes: if disabled, set isActive to false; if enabled, set isActive to true
+            if (profile.getInviteCodes() != null) {
+                for (InviteCode code : profile.getInviteCodes()) {
+                    // We only want to enable the current reference code if it was the one disabled
+                    // But the requirement says "when enabled/disabled", let's assume it applies to all or the current one.
+                    // Usually, only one should be active anyway.
+                    if (code.getCodeString().equalsIgnoreCase(profile.getReferenceNumber())) {
+                        code.setIsActive(!newStatus);
+                    }
+                }
+            }
             missionaryProfileRepository.save(profile);
 
             return ResponseEntity.ok(Map.of(
@@ -190,14 +203,12 @@ public class MissionaryProfileController {
 
             // Update profile's main reference number
             profile.setReferenceNumber(newCode);
+            // Ensure the reference is enabled when a new code is generated
+            profile.setIsReferenceDisabled(false);
             missionaryProfileRepository.save(profile);
 
-            // Deactivate old invite codes and create new one
-            if (profile.getInviteCodes() != null) {
-                for (InviteCode oldCode : profile.getInviteCodes()) {
-                    oldCode.setIsActive(false);
-                }
-            }
+            // Delete old invite codes and create new one
+            inviteCodeRepository.deleteByMissionaryId(user.getId());
 
             InviteCode inviteCode = new InviteCode();
             inviteCode.setMissionary(profile);

@@ -12,4 +12,6 @@ public interface InviteCodeRepository extends JpaRepository<InviteCode, UUID> {
     Optional<InviteCode> findByCodeString(String codeString);
 
     Optional<InviteCode> findByCodeStringIgnoreCase(String codeString);
+
+    void deleteByMissionaryId(UUID missionaryId);
 }

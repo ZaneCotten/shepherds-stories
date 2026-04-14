@@ -72,7 +72,11 @@ export const MissionaryView = () => {
             });
             if (response.ok) {
                 const data = await response.json();
-                setProfile(prev => ({...prev, referenceNumber: data.newCode}));
+                setProfile(prev => ({
+                    ...prev,
+                    referenceNumber: data.newCode,
+                    isReferenceDisabled: false // Optimistically enable the reference code
+                }));
             } else {
                 const errorData = await response.json().catch(() => ({}));
                 alert(`Failed to generate new code: ${errorData.error || response.statusText}`);

@@ -178,6 +178,7 @@ class MissionaryProfileControllerTest {
     void toggleReferenceStatus_Success() {
         String email = "missionary@example.com";
         UUID userId = UUID.randomUUID();
+        String code = "ABCDEF1234567890";
 
         User user = new User();
         user.setId(userId);
@@ -186,20 +187,31 @@ class MissionaryProfileControllerTest {
         MissionaryProfile profile = new MissionaryProfile();
         profile.setId(userId);
         profile.setIsReferenceDisabled(false);
+        profile.setReferenceNumber(code);
+
+        InviteCode inviteCode = new InviteCode();
+        inviteCode.setMissionary(profile);
+        inviteCode.setCodeString(code);
+        inviteCode.setIsActive(true);
+        profile.setInviteCodes(List.of(inviteCode));
 
         setupAuth(email);
         when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
         when(missionaryProfileRepository.findById(userId)).thenReturn(Optional.of(profile));
 
+        // Disable
         ResponseEntity<?> response = controller.toggleReferenceStatus();
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(true, profile.getIsReferenceDisabled());
-        verify(missionaryProfileRepository).save(profile);
+        assertTrue(profile.getIsReferenceDisabled());
+        assertFalse(inviteCode.getIsActive());
+        verify(missionaryProfileRepository, times(1)).save(profile);
 
-        // Toggle back
+        // Toggle back (Enable)
         controller.toggleReferenceStatus();
-        assertEquals(false, profile.getIsReferenceDisabled());
+        assertFalse(profile.getIsReferenceDisabled());
+        assertTrue(inviteCode.getIsActive());
+        verify(missionaryProfileRepository, times(2)).save(profile);
     }
 
     @Test
@@ -238,6 +250,7 @@ class MissionaryProfileControllerTest {
         MissionaryProfile profile = new MissionaryProfile();
         profile.setId(userId);
         profile.setReferenceNumber("OLD_CODE");
+        profile.setIsReferenceDisabled(true); // Start as disabled
         profile.setInviteCodes(new ArrayList<>());
 
         setupAuth(email);
@@ -254,7 +267,9 @@ class MissionaryProfileControllerTest {
         assertEquals(16, newCode.length());
         assertNotEquals("OLD_CODE", newCode);
         assertEquals(newCode, profile.getReferenceNumber());
+        assertFalse(profile.getIsReferenceDisabled()); // Should be false (enabled) after generation
 
+        verify(inviteCodeRepository).deleteByMissionaryId(userId);
         verify(missionaryProfileRepository).save(profile);
         verify(inviteCodeRepository).save(any(InviteCode.class));
     }
