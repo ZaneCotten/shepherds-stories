@@ -14,19 +14,23 @@ export const CommentSection = ({postId, postAuthorId}) => {
     const currentUserId = currentUser?.id || currentUser?.userId; // Handle both potential field names
 
     useEffect(() => {
-        fetch(`/api/posts/${postId}/comments`)
-            .then(res => {
-                if (!res.ok) throw new Error("Failed to fetch comments");
-                return res.json();
-            })
-            .then(data => {
-                setComments(data);
-                setLoading(false);
-            })
-            .catch(err => {
+        const fetchComments = async () => {
+            try {
+                const res = await fetch(`/api/posts/${postId}/comments`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setComments(data);
+                } else {
+                    console.error("Failed to fetch comments");
+                }
+            } catch (err) {
                 console.error(err);
+            } finally {
                 setLoading(false);
-            });
+            }
+        };
+
+        fetchComments();
     }, [postId]);
 
     const handleSubmit = async (e, parentCommentId = null) => {
@@ -91,6 +95,20 @@ export const CommentSection = ({postId, postAuthorId}) => {
         }
     };
 
+    const handleToggleLike = async (commentId) => {
+        try {
+            const response = await fetch(`/api/posts/${postId}/comments/${commentId}/like`, {
+                method: "POST"
+            });
+            if (response.ok) {
+                const updatedComment = await response.json();
+                setComments(comments.map(c => String(c.id) === String(commentId) ? updatedComment : c));
+            }
+        } catch (err) {
+            console.error("Error toggling like:", err);
+        }
+    };
+
     const handleDelete = async (commentId) => {
         if (!window.confirm("Are you sure you want to delete this comment?")) return;
         try {
@@ -136,7 +154,7 @@ export const CommentSection = ({postId, postAuthorId}) => {
         return (
             <div key={comment.id} style={{display: "flex", flexDirection: "column", gap: "10px"}}>
                 <div style={{
-                    padding: "8px 12px",
+                    padding: `8px 12px ${!comment.isDeleted ? "24px" : "8px"} 12px`,
                     backgroundColor: "var(--bg-input)",
                     borderRadius: "8px",
                     border: "1px solid var(--border-input)",
@@ -219,6 +237,7 @@ export const CommentSection = ({postId, postAuthorId}) => {
                             </div>
                         </div>
                     </div>
+
 
                     {isEditing ? (
                         <div style={{display: "flex", flexDirection: "column", gap: "5px"}}>
@@ -324,6 +343,41 @@ export const CommentSection = ({postId, postAuthorId}) => {
                                 >Cancel
                                 </button>
                             </div>
+                        </div>
+                    )}
+
+                    {!comment.isDeleted && (
+                        <div style={{
+                            position: "absolute",
+                            bottom: "4px",
+                            right: "8px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px"
+                        }}>
+                            {comment.likeCount > 0 && comment.lastLikerName && (
+                                <span style={{fontSize: "0.75rem", color: "var(--text-muted)"}}>
+                                    Liked by {comment.lastLikerName}
+                                    {comment.likeCount > 1 && ` and ${comment.likeCount - 1} more`}
+                                </span>
+                            )}
+                            <button
+                                onClick={() => handleToggleLike(comment.id)}
+                                style={{
+                                    background: "none",
+                                    border: "none",
+                                    color: comment.liked ? "var(--accent)" : "var(--text-muted)",
+                                    fontSize: "0.8rem",
+                                    cursor: "pointer",
+                                    padding: "2px 0",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    fontWeight: comment.liked ? "bold" : "normal"
+                                }}
+                            >
+                                {comment.liked ? "❤️" : "🤍"} {comment.likeCount > 0 && comment.likeCount}
+                            </button>
                         </div>
                     )}
                 </div>

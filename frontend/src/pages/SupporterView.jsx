@@ -201,11 +201,13 @@ export const SupporterView = () => {
                                     marginBottom: "20px"
                                 }}>{post.content}</p>
 
+                                <CommentSection postId={post.id} postAuthorId={post.authorId}/>
+
                                 <div style={{
                                     display: "flex",
                                     alignItems: "center",
                                     gap: "10px",
-                                    marginBottom: "20px",
+                                    marginTop: "10px",
                                     borderTop: "1px solid var(--border-input)",
                                     paddingTop: "10px"
                                 }}>
@@ -239,8 +241,6 @@ export const SupporterView = () => {
                                         )}
                                     </span>
                                 </div>
-
-                                <CommentSection postId={post.id} postAuthorId={post.authorId}/>
                             </div>
                         ))}
                     </div>
