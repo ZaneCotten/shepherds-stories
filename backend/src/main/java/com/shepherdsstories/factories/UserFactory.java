@@ -64,6 +64,7 @@ public class UserFactory {
         user.setIsLocked(false);
         user.setCreatedAt(OffsetDateTime.now());
         user.setUpdatedAt(OffsetDateTime.now());
+        user.setProfilePictureKey(dto.getProfilePictureUrl());
         return user;
     }
 

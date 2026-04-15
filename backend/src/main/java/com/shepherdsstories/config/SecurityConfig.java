@@ -101,18 +101,20 @@ public class SecurityConfig {
             String name = asString(authToken, "name");
             String givenName = asString(authToken, "given_name");
             String familyName = asString(authToken, "family_name");
+            String picture = asString(authToken, "picture");
             String oauthId = provider + ":" + normalizedEmail;
 
             Optional<User> userOptional = userRepository.findByEmailIgnoreCase(normalizedEmail)
                     .or(() -> userRepository.findByOauthId(oauthId));
             if (userOptional.isEmpty()) {
                 String url = String.format(
-                        "http://localhost:5173/register/select-role?email=%s&provider=%s&name=%s&given_name=%s&family_name=%s",
+                        "http://localhost:5173/register/select-role?email=%s&provider=%s&name=%s&given_name=%s&family_name=%s&picture=%s",
                         encode(normalizedEmail),
                         encode(provider),
                         encode(nullSafe(name)),
                         encode(nullSafe(givenName)),
-                        encode(nullSafe(familyName))
+                        encode(nullSafe(familyName)),
+                        encode(nullSafe(picture))
                 );
                 response.sendRedirect(url);
             } else {

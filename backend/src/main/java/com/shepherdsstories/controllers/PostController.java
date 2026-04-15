@@ -11,14 +11,10 @@ import com.shepherdsstories.data.repositories.UserRepository;
 import com.shepherdsstories.data.repositories.MediaRepository;
 import com.shepherdsstories.dtos.MediaDTO;
 import com.shepherdsstories.dtos.PostDTO;
-import com.shepherdsstories.entities.User;
-import com.shepherdsstories.entities.Post;
-import com.shepherdsstories.entities.MissionaryProfile;
-import com.shepherdsstories.entities.PostLike;
-import com.shepherdsstories.entities.PostLikeId;
-import com.shepherdsstories.entities.Media;
+import com.shepherdsstories.entities.*;
 import com.shepherdsstories.exceptions.ResourceNotFoundException;
 import com.shepherdsstories.exceptions.UnauthenticatedException;
+import com.shepherdsstories.services.ProfileService;
 import com.shepherdsstories.services.S3Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,23 +38,23 @@ public class PostController {
     private static final String POST_NOT_FOUND = "Post not found";
 
     private final PostRepository postRepository;
+    private final ProfileService profileService;
     private final MissionaryProfileRepository missionaryProfileRepository;
-    private final SupporterProfileRepository supporterProfileRepository;
     private final UserRepository userRepository;
     private final PostLikeRepository postLikeRepository;
     private final MediaRepository mediaRepository;
     private final S3Service s3Service;
 
     public PostController(PostRepository postRepository,
+                          ProfileService profileService,
                           MissionaryProfileRepository missionaryProfileRepository,
-                          SupporterProfileRepository supporterProfileRepository,
                           UserRepository userRepository,
                           PostLikeRepository postLikeRepository,
                           MediaRepository mediaRepository,
                           S3Service s3Service) {
         this.postRepository = postRepository;
+        this.profileService = profileService;
         this.missionaryProfileRepository = missionaryProfileRepository;
-        this.supporterProfileRepository = supporterProfileRepository;
         this.userRepository = userRepository;
         this.postLikeRepository = postLikeRepository;
         this.mediaRepository = mediaRepository;
@@ -362,13 +358,14 @@ public class PostController {
                 .title(post.getTitle())
                 .content(post.getContent())
                 .authorId(post.getAuthor().getId())
-                .authorName(post.getAuthor().getMissionaryName())
+                .authorName(profileService.getUserDisplayName(post.getAuthor().getUser()))
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
                 .likeCount(likeCount)
                 .liked(liked)
                 .lastLikerName(lastLikerName)
                 .media(mediaDTOs)
+                .profilePictureUrl(s3Service.generatePresignedUrl(post.getAuthor().getUser().getProfilePictureKey()))
                 .build();
     }
 
@@ -383,26 +380,7 @@ public class PostController {
             return "you";
         }
 
-        return getUserDisplayName(lastLiker);
-    }
-
-    private String getUserDisplayName(User user) {
-        if (user.getRole() == Role.MISSIONARY) {
-            return missionaryProfileRepository.findById(user.getId())
-                    .map(mp -> {
-                        String name = mp.getMissionaryName().trim();
-                        return name.isEmpty() ? user.getEmail() : name;
-                    })
-                    .orElse(user.getEmail());
-        } else if (user.getRole() == Role.SUPPORTER) {
-            return supporterProfileRepository.findById(user.getId())
-                    .map(sp -> {
-                        String name = (sp.getFirstName() + " " + sp.getLastName()).trim();
-                        return name.isEmpty() ? user.getEmail() : name;
-                    })
-                    .orElse(user.getEmail());
-        }
-        return user.getEmail();
+        return profileService.getUserDisplayName(lastLiker);
     }
 
     private User getCurrentUser(Authentication authentication) {

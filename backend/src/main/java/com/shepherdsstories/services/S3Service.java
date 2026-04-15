@@ -41,7 +41,12 @@ public class S3Service {
     }
 
     public String generatePresignedUrl(String key) {
-        if (key == null) return null;
+        if (key == null || key.isBlank()) return null;
+
+        // If the key is already a full URL (e.g. from Google OAuth), return it as is
+        if (key.startsWith("http://") || key.startsWith("https://")) {
+            return key;
+        }
 
         GetObjectPresignRequest getObjectPresignRequest = GetObjectPresignRequest.builder()
                 .signatureDuration(Duration.ofMinutes(60))

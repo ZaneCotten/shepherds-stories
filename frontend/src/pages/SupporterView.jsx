@@ -7,9 +7,19 @@ export const SupporterView = () => {
     const [error, setError] = useState("");
     const [feed, setFeed] = useState([]);
     const [loadingFeed, setLoadingFeed] = useState(true);
+    const [profile, setProfile] = useState(null);
+    const [profilePictureLoading, setProfilePictureLoading] = useState(false);
 
     useEffect(() => {
-        fetch("/api/posts/feed")
+        const fetchProfile = fetch("/api/profile")
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to fetch profile");
+                return res.json();
+            })
+            .then(data => setProfile(data))
+            .catch(err => console.error("Error fetching profile:", err));
+
+        const fetchFeed = fetch("/api/posts/feed")
             .then(res => {
                 if (!res.ok) throw new Error("Failed to fetch feed");
                 return res.json();
@@ -21,6 +31,8 @@ export const SupporterView = () => {
             .catch(() => {
                 setLoadingFeed(false);
             });
+
+        Promise.all([fetchProfile, fetchFeed]);
     }, []);
 
     const handleLogout = async () => {
@@ -72,6 +84,50 @@ export const SupporterView = () => {
         }
     };
 
+    const handleProfilePictureChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setProfilePictureLoading(true);
+        try {
+            // 1. Get Upload URL
+            const urlParams = new URLSearchParams({contentType: file.type});
+            const urlResponse = await fetch(`/api/profile/upload-url?${urlParams.toString()}`);
+            if (!urlResponse.ok) throw new Error("Failed to get upload URL");
+            const {uploadUrl, key} = await urlResponse.json();
+
+            // 2. Upload to S3
+            const uploadResponse = await fetch(uploadUrl, {
+                method: 'PUT',
+                body: file,
+                headers: {'Content-Type': file.type}
+            });
+            if (!uploadResponse.ok) throw new Error("Failed to upload to S3");
+
+            // 3. Update Profile in DB
+            const updateResponse = await fetch("/api/profile/picture", {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({key})
+            });
+
+            if (updateResponse.ok) {
+                const updatedProfile = await updateResponse.json();
+                setProfile(prev => ({
+                    ...prev,
+                    profilePictureUrl: updatedProfile.profilePictureUrl
+                }));
+            } else {
+                alert("Failed to update profile picture in database.");
+            }
+        } catch (err) {
+            console.error("Profile picture upload error:", err);
+            alert(`Error uploading profile picture: ${err.message}`);
+        } finally {
+            setProfilePictureLoading(false);
+        }
+    };
+
     return (
         <div style={{
             minHeight: "100vh",
@@ -85,6 +141,69 @@ export const SupporterView = () => {
             <h1 style={{color: "var(--text-h)", fontSize: "3rem", marginBottom: "20px"}}>
                 Supporter Dashboard
             </h1>
+
+            <div style={{
+                position: "relative",
+                marginBottom: "20px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center"
+            }}>
+                <div style={{
+                    width: "100px",
+                    height: "100px",
+                    borderRadius: "50%",
+                    overflow: "hidden",
+                    border: "3px solid var(--accent)",
+                    backgroundColor: "var(--bg-card)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    position: "relative"
+                }}>
+                    {profile?.profilePictureUrl ? (
+                        <img
+                            src={profile.profilePictureUrl}
+                            alt="Profile"
+                            style={{width: "100%", height: "100%", objectFit: "cover"}}
+                        />
+                    ) : (
+                        <span style={{fontSize: "2.5rem", color: "var(--text-muted)"}}>
+                            {profile?.displayName?.charAt(0) || "S"}
+                        </span>
+                    )}
+                    {profilePictureLoading && (
+                        <div style={{
+                            position: "absolute",
+                            inset: 0,
+                            backgroundColor: "rgba(0,0,0,0.5)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "white",
+                            fontSize: "0.7rem"
+                        }}>
+                            ...
+                        </div>
+                    )}
+                </div>
+                <label style={{
+                    marginTop: "10px",
+                    color: "var(--accent)",
+                    cursor: "pointer",
+                    fontSize: "0.8rem",
+                    fontWeight: "bold",
+                    textDecoration: "underline"
+                }}>
+                    {profile?.profilePictureUrl ? "Change Photo" : "Upload Photo"}
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleProfilePictureChange}
+                        style={{display: "none"}}
+                    />
+                </label>
+            </div>
 
             <div style={{
                 backgroundColor: "var(--bg-card)",
@@ -174,60 +293,49 @@ export const SupporterView = () => {
                                     alignItems: "flex-start",
                                     marginBottom: "10px"
                                 }}>
-                                    <div>
-                                        {post.title &&
-                                            <h3 style={{color: "var(--text-h)", margin: 0}}>{post.title}</h3>}
-                                        {post.media && post.media.length > 0 && (
+                                    <div style={{display: "flex", gap: "12px"}}>
+                                        {post.profilePictureUrl ? (
+                                            <img
+                                                src={post.profilePictureUrl}
+                                                alt=""
+                                                style={{
+                                                    width: "40px",
+                                                    height: "40px",
+                                                    borderRadius: "50%",
+                                                    objectFit: "cover",
+                                                    border: "2px solid var(--accent)"
+                                                }}
+                                            />
+                                        ) : (
                                             <div style={{
+                                                width: "40px",
+                                                height: "40px",
+                                                borderRadius: "50%",
+                                                backgroundColor: "var(--bg-input)",
+                                                border: "1px solid var(--border-input)",
                                                 display: "flex",
-                                                flexDirection: "column",
-                                                gap: "10px",
-                                                marginBottom: "10px",
-                                                marginTop: "10px"
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                fontSize: "1rem",
+                                                color: "var(--text-muted)"
                                             }}>
-                                                {post.media.map(m => (
-                                                    <div key={m.id} style={{width: "100%"}}>
-                                                        {m.mediaType === "IMAGE" && (
-                                                            <img src={m.url} alt={m.fileName} style={{
-                                                                width: "100%",
-                                                                borderRadius: "8px",
-                                                                maxHeight: "300px",
-                                                                objectFit: "cover"
-                                                            }}/>
-                                                        )}
-                                                        {m.mediaType === "VIDEO" && (
-                                                            <video controls src={m.url} style={{
-                                                                width: "100%",
-                                                                borderRadius: "8px",
-                                                                maxHeight: "300px"
-                                                            }}/>
-                                                        )}
-                                                        {m.mediaType === "AUDIO" && (
-                                                            <audio controls src={m.url} style={{width: "100%"}}/>
-                                                        )}
-                                                        {m.mediaType === "DOCUMENT" && (
-                                                            <a href={m.url} target="_blank" rel="noreferrer" style={{
-                                                                display: "flex",
-                                                                alignItems: "center",
-                                                                gap: "10px",
-                                                                padding: "10px",
-                                                                backgroundColor: "var(--bg-input)",
-                                                                borderRadius: "8px",
-                                                                textDecoration: "none",
-                                                                color: "var(--accent)"
-                                                            }}>
-                                                                📎 {m.fileName}
-                                                            </a>
-                                                        )}
-                                                    </div>
-                                                ))}
+                                                {post.authorName?.charAt(0) || "M"}
                                             </div>
                                         )}
-                                        <p style={{color: "var(--accent)", fontWeight: "bold", fontSize: "0.9rem"}}>
-                                            {post.authorName}
-                                        </p>
+                                        <div>
+                                            {post.title &&
+                                                <h3 style={{color: "var(--text-h)", margin: 0}}>{post.title}</h3>}
+                                            <p style={{
+                                                color: "var(--accent)",
+                                                fontWeight: "bold",
+                                                fontSize: "0.9rem",
+                                                margin: "2px 0"
+                                            }}>
+                                                {post.authorName}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <p style={{color: "var(--text-muted)", fontSize: "0.8rem", textAlign: "right"}}>
+                                    <div style={{textAlign: "right", color: "var(--text-muted)", fontSize: "0.8rem"}}>
                                         {new Date(post.createdAt).toLocaleString([], {
                                             dateStyle: 'short',
                                             timeStyle: 'short'
@@ -240,8 +348,54 @@ export const SupporterView = () => {
                                             })})
                                             </div>
                                         )}
-                                    </p>
+                                    </div>
                                 </div>
+                                {post.media && post.media.length > 0 && (
+                                    <div style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: "10px",
+                                        marginBottom: "10px",
+                                        marginTop: "10px"
+                                    }}>
+                                        {post.media.map(m => (
+                                            <div key={m.id} style={{width: "100%"}}>
+                                                {m.mediaType === "IMAGE" && (
+                                                    <img src={m.url} alt={m.fileName} style={{
+                                                        width: "100%",
+                                                        borderRadius: "8px",
+                                                        maxHeight: "300px",
+                                                        objectFit: "cover"
+                                                    }}/>
+                                                )}
+                                                {m.mediaType === "VIDEO" && (
+                                                    <video controls src={m.url} style={{
+                                                        width: "100%",
+                                                        borderRadius: "8px",
+                                                        maxHeight: "300px"
+                                                    }}/>
+                                                )}
+                                                {m.mediaType === "AUDIO" && (
+                                                    <audio controls src={m.url} style={{width: "100%"}}/>
+                                                )}
+                                                {m.mediaType === "DOCUMENT" && (
+                                                    <a href={m.url} target="_blank" rel="noreferrer" style={{
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        gap: "10px",
+                                                        padding: "10px",
+                                                        backgroundColor: "var(--bg-input)",
+                                                        borderRadius: "8px",
+                                                        textDecoration: "none",
+                                                        color: "var(--accent)"
+                                                    }}>
+                                                        📎 {m.fileName}
+                                                    </a>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                                 {post.content && (
                                     <p style={{
                                         color: "var(--text)",

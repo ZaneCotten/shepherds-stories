@@ -13,6 +13,7 @@ export const MissionaryView = () => {
     const [existingMedia, setExistingMedia] = useState([]);
     const [postLoading, setPostLoading] = useState(false);
     const [editingPost, setEditingPost] = useState(null);
+    const [profilePictureLoading, setProfilePictureLoading] = useState(false);
 
     useEffect(() => {
         const fetchProfile = fetch("/api/missionary/profile").then(res => {
@@ -268,6 +269,50 @@ export const MissionaryView = () => {
         }
     };
 
+    const handleProfilePictureChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setProfilePictureLoading(true);
+        try {
+            // 1. Get Upload URL
+            const urlParams = new URLSearchParams({contentType: file.type});
+            const urlResponse = await fetch(`/api/profile/upload-url?${urlParams.toString()}`);
+            if (!urlResponse.ok) throw new Error("Failed to get upload URL");
+            const {uploadUrl, key} = await urlResponse.json();
+
+            // 2. Upload to S3
+            const uploadResponse = await fetch(uploadUrl, {
+                method: 'PUT',
+                body: file,
+                headers: {'Content-Type': file.type}
+            });
+            if (!uploadResponse.ok) throw new Error("Failed to upload to S3");
+
+            // 3. Update Profile in DB
+            const updateResponse = await fetch("/api/profile/picture", {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({key})
+            });
+
+            if (updateResponse.ok) {
+                const updatedProfile = await updateResponse.json();
+                setProfile(prev => ({
+                    ...prev,
+                    profilePictureUrl: updatedProfile.profilePictureUrl
+                }));
+            } else {
+                alert("Failed to update profile picture in database.");
+            }
+        } catch (err) {
+            console.error("Profile picture upload error:", err);
+            alert(`Error uploading profile picture: ${err.message}`);
+        } finally {
+            setProfilePictureLoading(false);
+        }
+    };
+
     if (loading) return <div style={{padding: "40px", textAlign: "center"}}>Loading...</div>;
     if (error) return <div style={{padding: "40px", textAlign: "center", color: "red"}}>Error: {error}</div>;
 
@@ -283,6 +328,70 @@ export const MissionaryView = () => {
             <h1 style={{color: "var(--text-h)", fontSize: "3rem", marginBottom: "20px"}}>
                 Missionary Dashboard
             </h1>
+
+            <div style={{
+                position: "relative",
+                marginBottom: "20px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center"
+            }}>
+                <div style={{
+                    width: "120px",
+                    height: "120px",
+                    borderRadius: "50%",
+                    overflow: "hidden",
+                    border: "4px solid var(--accent)",
+                    backgroundColor: "var(--bg-card)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    position: "relative"
+                }}>
+                    {profile?.profilePictureUrl ? (
+                        <img
+                            src={profile.profilePictureUrl}
+                            alt="Profile"
+                            style={{width: "100%", height: "100%", objectFit: "cover"}}
+                        />
+                    ) : (
+                        <span style={{fontSize: "3rem", color: "var(--text-muted)"}}>
+                            {profile?.missionaryName?.charAt(0) || "M"}
+                        </span>
+                    )}
+                    {profilePictureLoading && (
+                        <div style={{
+                            position: "absolute",
+                            inset: 0,
+                            backgroundColor: "rgba(0,0,0,0.5)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "white",
+                            fontSize: "0.8rem"
+                        }}>
+                            Uploading...
+                        </div>
+                    )}
+                </div>
+                <label style={{
+                    marginTop: "10px",
+                    color: "var(--accent)",
+                    cursor: "pointer",
+                    fontSize: "0.9rem",
+                    fontWeight: "bold",
+                    textDecoration: "underline"
+                }}>
+                    {profile?.profilePictureUrl ? "Change Photo" : "Upload Photo"}
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleProfilePictureChange}
+                        style={{display: "none"}}
+                    />
+                </label>
+            </div>
+
             <p style={{color: "var(--text)", fontSize: "1.2rem", marginBottom: "10px"}}>
                 Welcome, {profile?.missionaryName || "Missionary"}.
             </p>
@@ -691,8 +800,48 @@ export const MissionaryView = () => {
                                     </form>
                                 ) : (
                                     <>
-                                        {post.title &&
-                                            <h3 style={{color: "var(--text-h)", marginBottom: "5px"}}>{post.title}</h3>}
+                                        <div style={{display: "flex", gap: "12px", marginBottom: "10px"}}>
+                                            {post.profilePictureUrl ? (
+                                                <img
+                                                    src={post.profilePictureUrl}
+                                                    alt=""
+                                                    style={{
+                                                        width: "40px",
+                                                        height: "40px",
+                                                        borderRadius: "50%",
+                                                        objectFit: "cover",
+                                                        border: "2px solid var(--accent)"
+                                                    }}
+                                                />
+                                            ) : (
+                                                <div style={{
+                                                    width: "40px",
+                                                    height: "40px",
+                                                    borderRadius: "50%",
+                                                    backgroundColor: "var(--bg-input)",
+                                                    border: "1px solid var(--border-input)",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    fontSize: "1rem",
+                                                    color: "var(--text-muted)"
+                                                }}>
+                                                    {post.authorName?.charAt(0) || "M"}
+                                                </div>
+                                            )}
+                                            <div>
+                                                {post.title &&
+                                                    <h3 style={{color: "var(--text-h)", margin: 0}}>{post.title}</h3>}
+                                                <p style={{
+                                                    color: "var(--accent)",
+                                                    fontWeight: "bold",
+                                                    fontSize: "0.9rem",
+                                                    margin: "2px 0"
+                                                }}>
+                                                    {post.authorName}
+                                                </p>
+                                            </div>
+                                        </div>
                                         {post.media && post.media.length > 0 && (
                                             <div style={{
                                                 display: "flex",

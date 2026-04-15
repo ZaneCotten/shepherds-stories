@@ -5,6 +5,8 @@ import com.shepherdsstories.data.enums.Role;
 import com.shepherdsstories.data.repositories.*;
 import com.shepherdsstories.dtos.CommentDTO;
 import com.shepherdsstories.entities.*;
+import com.shepherdsstories.services.ProfileService;
+import com.shepherdsstories.services.S3Service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,16 +41,16 @@ class CommentControllerTest {
     private UserRepository userRepository;
 
     @Mock
-    private MissionaryProfileRepository missionaryProfileRepository;
-
-    @Mock
-    private SupporterProfileRepository supporterProfileRepository;
+    private ProfileService profileService;
 
     @Mock
     private ConnectionRepository connectionRepository;
 
     @Mock
     private CommentLikeRepository commentLikeRepository;
+
+    @Mock
+    private S3Service s3Service;
 
     @InjectMocks
     private CommentController controller;
@@ -97,9 +99,12 @@ class CommentControllerTest {
 
         lenient().when(userRepository.findByEmailIgnoreCase("missionary@test.com")).thenReturn(Optional.of(missionaryUser));
         lenient().when(userRepository.findByEmailIgnoreCase("supporter@test.com")).thenReturn(Optional.of(supporterUser));
-        lenient().when(missionaryProfileRepository.findById(missionaryUser.getId())).thenReturn(Optional.of(missionaryProfile));
-        lenient().when(supporterProfileRepository.findById(supporterUser.getId())).thenReturn(Optional.of(supporterProfile));
         lenient().when(postRepository.findById(post.getId())).thenReturn(Optional.of(post));
+
+        lenient().when(profileService.getUserName(missionaryUser)).thenReturn("Test Missionary");
+        lenient().when(profileService.getUserName(supporterUser)).thenReturn("John Doe");
+        lenient().when(profileService.getUserDisplayName(missionaryUser)).thenReturn("Test Missionary");
+        lenient().when(profileService.getUserDisplayName(supporterUser)).thenReturn("John Doe");
     }
 
     @Test

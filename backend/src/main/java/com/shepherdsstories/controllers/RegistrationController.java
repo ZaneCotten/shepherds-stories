@@ -146,6 +146,7 @@ public class RegistrationController {
         dto.setDisplayName(fullName);
         dto.setFirstName(givenName);
         dto.setLastName(familyName);
+        dto.setProfilePictureUrl(request.profilePictureUrl());
 
         registrationService.registerSocial(dto, oauthId, provider);
         authenticateUser(email, role.name(), httpRequest, httpResponse);

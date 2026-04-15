@@ -17,6 +17,7 @@ const OAuthRoleSelectionPage = ({onLogin}) => {
     const name = useMemo(() => searchParams.get("name") || "", [searchParams]);
     const givenName = useMemo(() => searchParams.get("given_name") || "", [searchParams]);
     const familyName = useMemo(() => searchParams.get("family_name") || "", [searchParams]);
+    const picture = useMemo(() => searchParams.get("picture") || "", [searchParams]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -30,7 +31,8 @@ const OAuthRoleSelectionPage = ({onLogin}) => {
                 authProvider: provider,
                 displayName: name,
                 firstName: givenName,
-                lastName: familyName
+                lastName: familyName,
+                profilePictureUrl: picture
             });
 
             const userData = {

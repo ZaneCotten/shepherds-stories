@@ -13,6 +13,8 @@ import com.shepherdsstories.entities.Post;
 import com.shepherdsstories.entities.PostLike;
 import com.shepherdsstories.entities.SupporterProfile;
 import com.shepherdsstories.entities.User;
+import com.shepherdsstories.services.ProfileService;
+import com.shepherdsstories.services.S3Service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,16 +41,22 @@ class PostControllerTest {
     private PostRepository postRepository;
 
     @Mock
-    private MissionaryProfileRepository missionaryProfileRepository;
+    private ProfileService profileService;
 
     @Mock
-    private SupporterProfileRepository supporterProfileRepository;
+    private MissionaryProfileRepository missionaryProfileRepository;
 
     @Mock
     private UserRepository userRepository;
 
     @Mock
     private PostLikeRepository postLikeRepository;
+
+    @Mock
+    private com.shepherdsstories.data.repositories.MediaRepository mediaRepository;
+
+    @Mock
+    private S3Service s3Service;
 
     @InjectMocks
     private PostController controller;
@@ -74,6 +82,7 @@ class PostControllerTest {
         lenient().when(auth.getName()).thenReturn("missionary@test.com");
 
         lenient().when(userRepository.findByEmailIgnoreCase("missionary@test.com")).thenReturn(Optional.of(missionaryUser));
+        lenient().when(profileService.getUserDisplayName(any())).thenReturn("Test Missionary");
     }
 
     @Test
@@ -199,7 +208,7 @@ class PostControllerTest {
         when(postLikeRepository.countByPostId(postId)).thenReturn(1L);
         when(postLikeRepository.existsByPostIdAndUserId(eq(postId), any())).thenReturn(true);
         when(postLikeRepository.findLatestLikes(eq(postId), any())).thenReturn(List.of(like));
-        when(supporterProfileRepository.findById(liker.getId())).thenReturn(Optional.of(likerProfile));
+        when(profileService.getUserDisplayName(liker)).thenReturn("Jane Doe");
 
         ResponseEntity<PostDTO> response = controller.toggleLike(postId, auth);
 
@@ -294,7 +303,7 @@ class PostControllerTest {
 
         // like2 is most recent
         when(postLikeRepository.findLatestLikes(eq(post.getId()), any())).thenReturn(List.of(like2, like1));
-        when(supporterProfileRepository.findById(supporter2.getId())).thenReturn(Optional.of(profile2));
+        when(profileService.getUserDisplayName(supporter2)).thenReturn("John Doe");
 
         ResponseEntity<List<PostDTO>> response = controller.getFeed(auth1);
 

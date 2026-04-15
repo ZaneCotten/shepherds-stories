@@ -172,11 +172,41 @@ export const CommentSection = ({postId, postAuthorId}) => {
                         }}/>
                     )}
                     <div style={{display: "flex", justifyContent: "space-between", marginBottom: "4px"}}>
-                        <span style={{
-                            fontWeight: "bold",
-                            fontSize: "0.85rem",
-                            color: "var(--accent)"
-                        }}>{comment.userName}</span>
+                        <div style={{display: "flex", alignItems: "center", gap: "8px"}}>
+                            {comment.profilePictureUrl ? (
+                                <img
+                                    src={comment.profilePictureUrl}
+                                    alt=""
+                                    style={{
+                                        width: "24px",
+                                        height: "24px",
+                                        borderRadius: "50%",
+                                        objectFit: "cover",
+                                        border: "1px solid var(--accent)"
+                                    }}
+                                />
+                            ) : (
+                                <div style={{
+                                    width: "24px",
+                                    height: "24px",
+                                    borderRadius: "50%",
+                                    backgroundColor: "var(--bg-card)",
+                                    border: "1px solid var(--border-input)",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: "0.7rem",
+                                    color: "var(--text-muted)"
+                                }}>
+                                    {comment.userName?.charAt(0) || "U"}
+                                </div>
+                            )}
+                            <span style={{
+                                fontWeight: "bold",
+                                fontSize: "0.85rem",
+                                color: "var(--accent)"
+                            }}>{comment.userName}</span>
+                        </div>
                         <div style={{display: "flex", alignItems: "center", gap: "8px"}}>
                             <span style={{fontSize: "0.75rem", color: "var(--text-muted)"}}>
                                 {new Date(comment.createdAt).toLocaleString([], {

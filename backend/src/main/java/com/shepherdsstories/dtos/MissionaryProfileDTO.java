@@ -5,7 +5,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class MissionaryProfileDTO {
+public class MissionaryProfileDTO extends UserProfileDTO {
     private String missionaryName;
     private String locationRegion;
     private String biography;

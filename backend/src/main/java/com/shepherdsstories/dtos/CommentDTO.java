@@ -26,4 +26,5 @@ public class CommentDTO {
     private Long likeCount;
     private Boolean liked;
     private String lastLikerName;
+    private String profilePictureUrl;
 }

@@ -154,6 +154,12 @@ public class MissionaryProfileController {
             dto.setReferenceNumber(profile.getReferenceNumber());
             dto.setIsReferenceDisabled(profile.getIsReferenceDisabled());
 
+            // Populate UserProfileDTO fields
+            dto.setId(user.getId());
+            dto.setEmail(user.getEmail());
+            dto.setRole(user.getRole().name());
+            dto.setDisplayName(profile.getMissionaryName());
+
             return ResponseEntity.ok(dto);
         } catch (Exception e) {
             logger.error("Error fetching missionary profile", e);

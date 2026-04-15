@@ -25,4 +25,5 @@ public class PostDTO {
     private Boolean liked;
     private String lastLikerName;
     private List<MediaDTO> media;
+    private String profilePictureUrl;
 }

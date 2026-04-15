@@ -8,6 +8,8 @@ import com.shepherdsstories.dtos.CommentDTO;
 import com.shepherdsstories.entities.*;
 import com.shepherdsstories.exceptions.ResourceNotFoundException;
 import com.shepherdsstories.exceptions.UnauthenticatedException;
+import com.shepherdsstories.services.ProfileService;
+import com.shepherdsstories.services.S3Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -31,25 +33,25 @@ public class CommentController {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
-    private final MissionaryProfileRepository missionaryProfileRepository;
-    private final SupporterProfileRepository supporterProfileRepository;
+    private final ProfileService profileService;
     private final ConnectionRepository connectionRepository;
     private final CommentLikeRepository commentLikeRepository;
+    private final S3Service s3Service;
 
     public CommentController(CommentRepository commentRepository,
                              PostRepository postRepository,
                              UserRepository userRepository,
-                             MissionaryProfileRepository missionaryProfileRepository,
-                             SupporterProfileRepository supporterProfileRepository,
+                             ProfileService profileService,
                              ConnectionRepository connectionRepository,
-                             CommentLikeRepository commentLikeRepository) {
+                             CommentLikeRepository commentLikeRepository,
+                             S3Service s3Service) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
-        this.missionaryProfileRepository = missionaryProfileRepository;
-        this.supporterProfileRepository = supporterProfileRepository;
+        this.profileService = profileService;
         this.connectionRepository = connectionRepository;
         this.commentLikeRepository = commentLikeRepository;
+        this.s3Service = s3Service;
     }
 
     @PostMapping
@@ -298,7 +300,7 @@ public class CommentController {
                 .id(comment.getId())
                 .postId(comment.getPost().getId())
                 .userId(comment.getUser().getId())
-                .userName(getUserName(comment.getUser()))
+                .userName(profileService.getUserName(comment.getUser()))
                 .content(comment.getContent())
                 .parentCommentId(comment.getParentComment() != null ? comment.getParentComment().getId() : null)
                 .createdAt(comment.getCreatedAt())
@@ -308,6 +310,7 @@ public class CommentController {
                 .likeCount(likeCount)
                 .liked(liked)
                 .lastLikerName(lastLikerName)
+                .profilePictureUrl(s3Service.generatePresignedUrl(comment.getUser().getProfilePictureKey()))
                 .build();
     }
 
@@ -322,34 +325,7 @@ public class CommentController {
             return "you";
         }
 
-        return getUserDisplayName(lastLike.getUser());
-    }
-
-    private String getUserDisplayName(User user) {
-        if (user.getRole() == Role.MISSIONARY) {
-            return missionaryProfileRepository.findById(user.getId()).filter(mp -> (mp.getMissionaryName() != null && !mp.getMissionaryName().isEmpty())).map(MissionaryProfile::getMissionaryName).orElse(user.getEmail());
-        } else if (user.getRole() == Role.SUPPORTER) {
-            return supporterProfileRepository.findById(user.getId())
-                    .map(sp -> {
-                        String name = ((sp.getFirstName() != null ? sp.getFirstName() : "") + " " + (sp.getLastName() != null ? sp.getLastName() : "")).trim();
-                        return name.isEmpty() ? user.getEmail() : name;
-                    })
-                    .orElse(user.getEmail());
-        }
-        return user.getEmail();
-    }
-
-    private String getUserName(User user) {
-        if (user.getRole() == Role.MISSIONARY) {
-            return missionaryProfileRepository.findById(user.getId())
-                    .map(MissionaryProfile::getMissionaryName)
-                    .orElse("Unknown Missionary");
-        } else if (user.getRole() == Role.SUPPORTER) {
-            return supporterProfileRepository.findById(user.getId())
-                    .map(sp -> sp.getFirstName() + " " + sp.getLastName())
-                    .orElse("Unknown Supporter");
-        }
-        return "Unknown User";
+        return profileService.getUserDisplayName(lastLike.getUser());
     }
 
     private User getCurrentUser(Authentication authentication) {

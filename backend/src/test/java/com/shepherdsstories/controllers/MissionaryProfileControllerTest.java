@@ -1,6 +1,7 @@
 package com.shepherdsstories.controllers;
 
 import com.shepherdsstories.data.enums.RequestStatus;
+import com.shepherdsstories.data.enums.Role;
 import com.shepherdsstories.data.repositories.ConnectionRepository;
 import com.shepherdsstories.data.repositories.InviteCodeRepository;
 import com.shepherdsstories.data.repositories.MissionaryProfileRepository;
@@ -55,6 +56,7 @@ class MissionaryProfileControllerTest {
         User user = new User();
         user.setId(userId);
         user.setEmail(email);
+        user.setRole(Role.MISSIONARY);
 
         MissionaryProfile profile = new MissionaryProfile();
         profile.setId(userId);
@@ -88,6 +90,7 @@ class MissionaryProfileControllerTest {
         User user = new User();
         user.setId(userId);
         user.setEmail(email);
+        user.setRole(Role.MISSIONARY);
 
         MissionaryProfile profile = new MissionaryProfile();
         profile.setId(userId);

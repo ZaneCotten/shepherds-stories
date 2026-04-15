@@ -55,7 +55,8 @@ class RegistrationControllerTest {
                 "GOOGLE",
                 "Social User",
                 "Social",
-                "User"
+                "User",
+                "http://example.com/pic.jpg"
         );
 
         User savedUser = new User();
@@ -88,7 +89,8 @@ class RegistrationControllerTest {
                 "GOOGLE",
                 "Supporter User",
                 "Supporter",
-                "User"
+                "User",
+                null
         );
 
         User savedUser = new User();
@@ -120,7 +122,8 @@ class RegistrationControllerTest {
                 "GOOGLE",
                 "Social User",
                 "Social",
-                "User"
+                "User",
+                null
         );
 
         HttpServletRequest httpRequest = mock(HttpServletRequest.class);
@@ -141,7 +144,8 @@ class RegistrationControllerTest {
                 "GOOGLE",
                 "Social User",
                 "Social",
-                "User"
+                "User",
+                null
         );
 
         when(userRepository.findByEmailIgnoreCase("existing@example.com")).thenReturn(Optional.of(new User()));
@@ -164,7 +168,8 @@ class RegistrationControllerTest {
                 "GOOGLE",
                 "Social User",
                 "Social",
-                "User"
+                "User",
+                null
         );
 
         HttpServletRequest httpRequest = mock(HttpServletRequest.class);
@@ -185,7 +190,8 @@ class RegistrationControllerTest {
                 "INVALID_PROVIDER",
                 "Social User",
                 "Social",
-                "User"
+                "User",
+                null
         );
 
         when(userRepository.findByEmailIgnoreCase("social@example.com")).thenReturn(Optional.empty());

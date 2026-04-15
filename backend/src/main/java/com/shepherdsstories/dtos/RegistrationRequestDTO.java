@@ -35,4 +35,5 @@ public class RegistrationRequestDTO {
     private String displayName;
     private String region;
     private String biography;
+    private String profilePictureUrl;
 }
