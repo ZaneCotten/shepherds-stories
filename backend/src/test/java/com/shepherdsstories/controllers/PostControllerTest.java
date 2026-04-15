@@ -116,7 +116,7 @@ class PostControllerTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(1, response.getBody().size());
-        assertEquals("Title", response.getBody().get(0).getTitle());
+        assertEquals("Title", response.getBody().getFirst().getTitle());
     }
 
     @Test
@@ -144,8 +144,8 @@ class PostControllerTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(1, response.getBody().size());
-        assertEquals("Missionary Update", response.getBody().get(0).getTitle());
-        assertEquals("Test Missionary", response.getBody().get(0).getAuthorName());
+        assertEquals("Missionary Update", response.getBody().getFirst().getTitle());
+        assertEquals("Test Missionary", response.getBody().getFirst().getAuthorName());
     }
 
     @Test
@@ -205,7 +205,7 @@ class PostControllerTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(1, response.getBody().getLikeCount());
-        assertTrue(response.getBody().isLiked());
+        assertTrue(response.getBody().getLiked());
         assertEquals("Jane Doe", response.getBody().getLastLikerName());
         verify(postLikeRepository, times(1)).save(any(PostLike.class));
     }
@@ -251,9 +251,9 @@ class PostControllerTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(1, response.getBody().size());
-        PostDTO dto = response.getBody().get(0);
+        PostDTO dto = response.getBody().getFirst();
         assertEquals(2, dto.getLikeCount());
-        assertTrue(dto.isLiked());
+        assertTrue(dto.getLiked());
         assertEquals("you", dto.getLastLikerName());
     }
 
@@ -299,7 +299,7 @@ class PostControllerTest {
         ResponseEntity<List<PostDTO>> response = controller.getFeed(auth1);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        PostDTO dto = response.getBody().get(0);
+        PostDTO dto = response.getBody().getFirst();
         assertEquals("John Doe", dto.getLastLikerName());
     }
 
@@ -320,7 +320,7 @@ class PostControllerTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(0, response.getBody().getLikeCount());
-        assertFalse(response.getBody().isLiked());
+        assertFalse(response.getBody().getLiked());
         verify(postLikeRepository, times(1)).deleteById(any());
     }
 

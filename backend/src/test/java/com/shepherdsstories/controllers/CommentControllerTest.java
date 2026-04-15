@@ -474,7 +474,7 @@ class CommentControllerTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         CommentDTO responseDTO = (CommentDTO) response.getBody();
         assert responseDTO != null;
-        assertTrue(responseDTO.isLiked());
+        assertTrue(responseDTO.getLiked());
         assertEquals(1, responseDTO.getLikeCount());
         verify(commentLikeRepository).save(any(CommentLike.class));
     }
@@ -504,7 +504,7 @@ class CommentControllerTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         CommentDTO responseDTO = (CommentDTO) response.getBody();
         assert responseDTO != null;
-        assertFalse(responseDTO.isLiked());
+        assertFalse(responseDTO.getLiked());
         assertEquals(0, responseDTO.getLikeCount());
         verify(commentLikeRepository).delete(commentLike);
     }
