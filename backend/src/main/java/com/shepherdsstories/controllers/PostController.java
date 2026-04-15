@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -159,11 +160,14 @@ public class PostController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
 
-            validatePostUpdate(post, postDTO);
+            validatePostUpdate(postDTO);
 
             post.setTitle(postDTO.getTitle());
             post.setContent(postDTO.getContent());
             post.setUpdatedAt(OffsetDateTime.now());
+
+            // Handle Media Updates
+            updateMedia(post, postDTO.getMedia());
 
             Post updatedPost = postRepository.save(post);
             return ResponseEntity.ok(convertToDTO(updatedPost, user));
@@ -278,15 +282,47 @@ public class PostController {
         }
     }
 
-    private void validatePostUpdate(Post post, PostDTO postDTO) {
+    private void validatePostUpdate(PostDTO postDTO) {
         if (postDTO.getTitle() == null || postDTO.getTitle().isBlank()) {
             throw new IllegalArgumentException("Title is mandatory");
         }
         boolean hasContent = postDTO.getContent() != null && !postDTO.getContent().isBlank();
-        boolean hasMedia = !post.getMedia().isEmpty();
+        boolean hasMedia = postDTO.getMedia() != null && !postDTO.getMedia().isEmpty();
         if (!hasContent && !hasMedia) {
             throw new IllegalArgumentException("Title must be paired with either content or a media file");
         }
+    }
+
+    private void updateMedia(Post post, List<MediaDTO> mediaDTOs) {
+        if (mediaDTOs == null) {
+            // If media is not even sent in the request, we don't change existing media
+            // Actually, if it's sent as null, it's safer to do nothing.
+            // But if it's sent as an empty list, it means all media should be removed.
+            return;
+        }
+
+        // 1. Identify media to remove
+        List<UUID> dtoMediaIds = mediaDTOs.stream()
+                .map(MediaDTO::getId)
+                .filter(Objects::nonNull)
+                .toList();
+
+        List<Media> toRemove = post.getMedia().stream()
+                .filter(m -> !dtoMediaIds.contains(m.getId()))
+                .toList();
+
+        // Delete from S3
+        toRemove.forEach(m -> s3Service.deleteObject(m.getS3Key()));
+
+        // Remove from post.getMedia() - Hibernate handles the DB deletion due to orphanRemoval
+        post.getMedia().removeAll(toRemove);
+
+        // 2. Identify new media to add
+        List<MediaDTO> newMediaDTOs = mediaDTOs.stream()
+                .filter(m -> m.getId() == null)
+                .collect(Collectors.toList());
+
+        savePostMedia(post, newMediaDTOs);
     }
 
     private void savePostMedia(Post post, List<MediaDTO> mediaDTOs) {
@@ -342,7 +378,7 @@ public class PostController {
             return null;
         }
 
-        User lastLiker = latestLikes.get(0).getUser();
+        User lastLiker = latestLikes.getFirst().getUser();
         if (currentUser != null && lastLiker.getId().equals(currentUser.getId())) {
             return "you";
         }
