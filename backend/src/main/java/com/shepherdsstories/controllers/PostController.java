@@ -8,10 +8,18 @@ import com.shepherdsstories.data.repositories.PostLikeRepository;
 import com.shepherdsstories.data.repositories.PostRepository;
 import com.shepherdsstories.data.repositories.SupporterProfileRepository;
 import com.shepherdsstories.data.repositories.UserRepository;
+import com.shepherdsstories.data.repositories.MediaRepository;
+import com.shepherdsstories.dtos.MediaDTO;
 import com.shepherdsstories.dtos.PostDTO;
-import com.shepherdsstories.entities.*;
+import com.shepherdsstories.entities.User;
+import com.shepherdsstories.entities.Post;
+import com.shepherdsstories.entities.MissionaryProfile;
+import com.shepherdsstories.entities.PostLike;
+import com.shepherdsstories.entities.PostLikeId;
+import com.shepherdsstories.entities.Media;
 import com.shepherdsstories.exceptions.ResourceNotFoundException;
 import com.shepherdsstories.exceptions.UnauthenticatedException;
+import com.shepherdsstories.services.S3Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -23,6 +31,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -30,23 +39,30 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/posts")
 public class PostController {
     private static final Logger logger = LoggerFactory.getLogger(PostController.class);
+    private static final String POST_NOT_FOUND = "Post not found";
 
     private final PostRepository postRepository;
     private final MissionaryProfileRepository missionaryProfileRepository;
     private final SupporterProfileRepository supporterProfileRepository;
     private final UserRepository userRepository;
     private final PostLikeRepository postLikeRepository;
+    private final MediaRepository mediaRepository;
+    private final S3Service s3Service;
 
     public PostController(PostRepository postRepository,
                           MissionaryProfileRepository missionaryProfileRepository,
                           SupporterProfileRepository supporterProfileRepository,
                           UserRepository userRepository,
-                          PostLikeRepository postLikeRepository) {
+                          PostLikeRepository postLikeRepository,
+                          MediaRepository mediaRepository,
+                          S3Service s3Service) {
         this.postRepository = postRepository;
         this.missionaryProfileRepository = missionaryProfileRepository;
         this.supporterProfileRepository = supporterProfileRepository;
         this.userRepository = userRepository;
         this.postLikeRepository = postLikeRepository;
+        this.mediaRepository = mediaRepository;
+        this.s3Service = s3Service;
     }
 
     @PostMapping
@@ -61,6 +77,8 @@ public class PostController {
             MissionaryProfile missionary = missionaryProfileRepository.findById(user.getId())
                     .orElseThrow(() -> new ResourceNotFoundException("Missionary profile not found"));
 
+            validatePostRequirements(postDTO);
+
             Post post = new Post();
             post.setTitle(postDTO.getTitle());
             post.setContent(postDTO.getContent());
@@ -69,7 +87,11 @@ public class PostController {
             post.setUpdatedAt(OffsetDateTime.now());
 
             Post savedPost = postRepository.save(post);
+            savePostMedia(savedPost, postDTO.getMedia());
+
             return ResponseEntity.ok(convertToDTO(savedPost, user));
+        } catch (IllegalArgumentException _) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         } catch (UnauthenticatedException _) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         } catch (ResourceNotFoundException _) {
@@ -132,18 +154,25 @@ public class PostController {
         try {
             User user = getCurrentUser(authentication);
             Post post = postRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND));
 
             if (!post.getAuthor().getId().equals(user.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
 
+            validatePostUpdate(postDTO);
+
             post.setTitle(postDTO.getTitle());
             post.setContent(postDTO.getContent());
             post.setUpdatedAt(OffsetDateTime.now());
 
+            // Handle Media Updates
+            updateMedia(post, postDTO.getMedia());
+
             Post updatedPost = postRepository.save(post);
             return ResponseEntity.ok(convertToDTO(updatedPost, user));
+        } catch (IllegalArgumentException _) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         } catch (UnauthenticatedException _) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         } catch (ResourceNotFoundException _) {
@@ -154,13 +183,41 @@ public class PostController {
         }
     }
 
+    @DeleteMapping("/{id}")
+    @Transactional
+    public ResponseEntity<Void> deletePost(@PathVariable UUID id, Authentication authentication) {
+        try {
+            User user = getCurrentUser(authentication);
+            Post post = postRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND));
+
+            if (!post.getAuthor().getId().equals(user.getId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+
+            // Delete associated files from S3
+            post.getMedia().forEach(media -> s3Service.deleteObject(media.getS3Key()));
+
+            postRepository.delete(post);
+
+            return ResponseEntity.noContent().build();
+        } catch (UnauthenticatedException _) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        } catch (ResourceNotFoundException _) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Throwable t) {
+            logger.error("CRITICAL ERROR deleting post", t);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @PostMapping("/{id}/like")
     @Transactional
     public ResponseEntity<PostDTO> toggleLike(@PathVariable UUID id, Authentication authentication) {
         try {
             User user = getCurrentUser(authentication);
             Post post = postRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND));
 
             PostLikeId likeId = new PostLikeId();
             likeId.setPostId(post.getId());
@@ -188,11 +245,117 @@ public class PostController {
         }
     }
 
+    @GetMapping("/upload-url")
+    public ResponseEntity<MediaDTO> getUploadUrl(@RequestParam String fileName, @RequestParam String contentType, Authentication authentication) {
+        try {
+            User user = getCurrentUser(authentication);
+            if (user.getRole() != Role.MISSIONARY) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+
+            String s3Key = "posts/" + user.getId() + "/" + UUID.randomUUID() + "-" + fileName;
+            String uploadUrl = s3Service.generateUploadUrl(s3Key, contentType);
+
+            MediaDTO response = MediaDTO.builder()
+                    .s3Key(s3Key)
+                    .url(uploadUrl)
+                    .fileName(fileName)
+                    .build();
+
+            return ResponseEntity.ok(response);
+        } catch (UnauthenticatedException _) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        } catch (Throwable t) {
+            logger.error("Error generating upload URL", t);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    private void validatePostRequirements(PostDTO postDTO) {
+        if (postDTO.getTitle() == null || postDTO.getTitle().isBlank()) {
+            throw new IllegalArgumentException("Title is mandatory");
+        }
+        boolean hasContent = postDTO.getContent() != null && !postDTO.getContent().isBlank();
+        boolean hasMedia = postDTO.getMedia() != null && !postDTO.getMedia().isEmpty();
+        if (!hasContent && !hasMedia) {
+            throw new IllegalArgumentException("Title must be paired with either content or a media file");
+        }
+    }
+
+    private void validatePostUpdate(PostDTO postDTO) {
+        if (postDTO.getTitle() == null || postDTO.getTitle().isBlank()) {
+            throw new IllegalArgumentException("Title is mandatory");
+        }
+        boolean hasContent = postDTO.getContent() != null && !postDTO.getContent().isBlank();
+        boolean hasMedia = postDTO.getMedia() != null && !postDTO.getMedia().isEmpty();
+        if (!hasContent && !hasMedia) {
+            throw new IllegalArgumentException("Title must be paired with either content or a media file");
+        }
+    }
+
+    private void updateMedia(Post post, List<MediaDTO> mediaDTOs) {
+        if (mediaDTOs == null) {
+            // If media is not even sent in the request, we don't change existing media
+            // Actually, if it's sent as null, it's safer to do nothing.
+            // But if it's sent as an empty list, it means all media should be removed.
+            return;
+        }
+
+        // 1. Identify media to remove
+        List<UUID> dtoMediaIds = mediaDTOs.stream()
+                .map(MediaDTO::getId)
+                .filter(Objects::nonNull)
+                .toList();
+
+        List<Media> toRemove = post.getMedia().stream()
+                .filter(m -> !dtoMediaIds.contains(m.getId()))
+                .toList();
+
+        // Delete from S3
+        toRemove.forEach(m -> s3Service.deleteObject(m.getS3Key()));
+
+        // Remove from post.getMedia() - Hibernate handles the DB deletion due to orphanRemoval
+        post.getMedia().removeAll(toRemove);
+
+        // 2. Identify new media to add
+        List<MediaDTO> newMediaDTOs = mediaDTOs.stream()
+                .filter(m -> m.getId() == null)
+                .collect(Collectors.toList());
+
+        savePostMedia(post, newMediaDTOs);
+    }
+
+    private void savePostMedia(Post post, List<MediaDTO> mediaDTOs) {
+        if (mediaDTOs == null) return;
+        for (MediaDTO mDto : mediaDTOs) {
+            Media media = new Media();
+            media.setPost(post);
+            media.setS3Key(mDto.getS3Key());
+            media.setBucketName(s3Service.getBucketName());
+            media.setFileName(mDto.getFileName());
+            media.setMediaType(mDto.getMediaType());
+            media.setOrderNumber(mDto.getOrderNumber() != null ? mDto.getOrderNumber() : 0);
+            mediaRepository.save(media);
+            post.getMedia().add(media);
+        }
+    }
+
     private PostDTO convertToDTO(Post post, User currentUser) {
         long likeCount = postLikeRepository.countByPostId(post.getId());
         boolean liked = currentUser != null && postLikeRepository.existsByPostIdAndUserId(post.getId(), currentUser.getId());
 
         String lastLikerName = resolveLastLikerName(post.getId(), currentUser);
+
+        List<MediaDTO> mediaDTOs = post.getMedia().stream()
+                .map(m -> MediaDTO.builder()
+                        .id(m.getId())
+                        .fileName(m.getFileName())
+                        .mediaType(m.getMediaType())
+                        .orderNumber(m.getOrderNumber())
+                        .s3Key(m.getS3Key())
+                        .url(s3Service.generatePresignedUrl(m.getS3Key()))
+                        .build())
+                .collect(Collectors.toList());
 
         return PostDTO.builder()
                 .id(post.getId())
@@ -205,6 +368,7 @@ public class PostController {
                 .likeCount(likeCount)
                 .liked(liked)
                 .lastLikerName(lastLikerName)
+                .media(mediaDTOs)
                 .build();
     }
 
@@ -214,7 +378,7 @@ public class PostController {
             return null;
         }
 
-        User lastLiker = latestLikes.get(0).getUser();
+        User lastLiker = latestLikes.getFirst().getUser();
         if (currentUser != null && lastLiker.getId().equals(currentUser.getId())) {
             return "you";
         }

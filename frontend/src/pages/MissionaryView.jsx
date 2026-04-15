@@ -9,6 +9,8 @@ export const MissionaryView = () => {
     const [error, setError] = useState(null);
     const [newPostTitle, setNewPostTitle] = useState("");
     const [newPostContent, setNewPostContent] = useState("");
+    const [attachedFiles, setAttachedFiles] = useState([]);
+    const [existingMedia, setExistingMedia] = useState([]);
     const [postLoading, setPostLoading] = useState(false);
     const [editingPost, setEditingPost] = useState(null);
 
@@ -108,12 +110,77 @@ export const MissionaryView = () => {
         window.location.href = "/home";
     };
 
+    const handleFileChange = (e) => {
+        const files = Array.from(e.target.files);
+        setAttachedFiles(prev => [...prev, ...files]);
+    };
+
+    const removeFile = (index) => {
+        setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const removeExistingMedia = (mediaId) => {
+        setExistingMedia(prev => prev.filter(m => m.id !== mediaId));
+    };
+
+    const uploadFile = async (file) => {
+        // 1. Get Presigned URL
+        const urlParams = new URLSearchParams({
+            fileName: file.name,
+            contentType: file.type
+        });
+        const urlResponse = await fetch(`/api/posts/upload-url?${urlParams.toString()}`);
+        if (!urlResponse.ok) throw new Error("Failed to get upload URL");
+        const {url, s3Key} = await urlResponse.json();
+
+        // 2. Upload to S3
+        const uploadResponse = await fetch(url, {
+            method: 'PUT',
+            body: file,
+            headers: {
+                'Content-Type': file.type
+            }
+        });
+        if (!uploadResponse.ok) throw new Error("Failed to upload file to S3");
+
+        // 3. Determine Media Type
+        let mediaType = "DOCUMENT";
+        if (file.type.startsWith("image/")) mediaType = "IMAGE";
+        else if (file.type.startsWith("video/")) mediaType = "VIDEO";
+        else if (file.type.startsWith("audio/")) mediaType = "AUDIO";
+
+        return {
+            s3Key,
+            fileName: file.name,
+            mediaType,
+            orderNumber: 0
+        };
+    };
+
     const handleCreatePost = async (e) => {
         e.preventDefault();
-        if (!newPostTitle || !newPostContent) return;
+        const trimmedTitle = newPostTitle.trim();
+        if (!trimmedTitle) {
+            alert("Title is mandatory.");
+            return;
+        }
+        const hasContent = newPostContent.trim();
+        const hasMedia = attachedFiles.length > 0 || (editingPost && existingMedia.length > 0);
+
+        if (!hasContent && !hasMedia) {
+            alert("Title must be paired with either content or a media file.");
+            return;
+        }
 
         setPostLoading(true);
         try {
+            let uploadedMedia = [];
+            if (attachedFiles.length > 0) {
+                uploadedMedia = await Promise.all(attachedFiles.map(file => uploadFile(file)));
+            }
+
+            const finalMedia = editingPost ? [...existingMedia, ...uploadedMedia] : uploadedMedia;
+
             const url = editingPost ? `/api/posts/${editingPost.id}` : "/api/posts";
             const method = editingPost ? "PUT" : "POST";
             const response = await fetch(url, {
@@ -123,7 +190,8 @@ export const MissionaryView = () => {
                 },
                 body: JSON.stringify({
                     title: newPostTitle,
-                    content: newPostContent
+                    content: newPostContent,
+                    media: finalMedia
                 })
             });
 
@@ -136,11 +204,14 @@ export const MissionaryView = () => {
                 }
                 setNewPostTitle("");
                 setNewPostContent("");
+                setAttachedFiles([]);
+                setExistingMedia([]);
                 setEditingPost(null);
             } else {
                 alert(`Failed to ${editingPost ? 'update' : 'create'} post.`);
             }
         } catch (err) {
+            console.error("Post creation error:", err);
             alert(`Error ${editingPost ? 'updating' : 'creating'} post: ${err.message}`);
         } finally {
             setPostLoading(false);
@@ -151,13 +222,36 @@ export const MissionaryView = () => {
         setEditingPost(post);
         setNewPostTitle(post.title);
         setNewPostContent(post.content);
-        window.scrollTo({top: 0, behavior: 'smooth'});
+        setExistingMedia(post.media || []);
+        setAttachedFiles([]); // Clear any files picked for a new post
     };
 
     const cancelEditing = () => {
         setEditingPost(null);
         setNewPostTitle("");
         setNewPostContent("");
+        setExistingMedia([]);
+        setAttachedFiles([]);
+    };
+
+    const handleDeletePost = async (postId) => {
+        if (!window.confirm("Are you sure you want to delete this post? This will also remove any attached files forever.")) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/posts/${postId}`, {
+                method: 'DELETE'
+            });
+            if (response.ok) {
+                setPosts(posts.filter(p => p.id !== postId));
+            } else {
+                alert("Failed to delete post.");
+            }
+        } catch (err) {
+            console.error("Delete post error:", err);
+            alert(`Error deleting post: ${err.message}`);
+        }
     };
 
     const handleToggleLike = async (postId) => {
@@ -304,85 +398,121 @@ export const MissionaryView = () => {
                 </div>
             )}
 
-            <div style={{
-                width: "100%",
-                maxWidth: "500px",
-                backgroundColor: "var(--bg-card)",
-                padding: "20px",
-                borderRadius: "12px",
-                border: "1px solid var(--border-input)",
-                marginBottom: "30px"
-            }}>
-                <h2 style={{color: "var(--text-h)", fontSize: "1.5rem", marginBottom: "15px", textAlign: "center"}}>
-                    {editingPost ? "Edit Update" : "Post an Update"}
-                </h2>
-                <form onSubmit={handleCreatePost} style={{display: "flex", flexDirection: "column", gap: "10px"}}>
-                    <input
-                        type="text"
-                        placeholder="Title"
-                        value={newPostTitle}
-                        onChange={(e) => setNewPostTitle(e.target.value)}
-                        required
-                        style={{
-                            padding: "10px",
-                            borderRadius: "8px",
-                            border: "1px solid var(--border-input)",
-                            backgroundColor: "var(--bg-input)",
-                            color: "var(--text-h)"
-                        }}
-                    />
-                    <textarea
-                        placeholder="Content"
-                        value={newPostContent}
-                        onChange={(e) => setNewPostContent(e.target.value)}
-                        required
-                        style={{
-                            padding: "10px",
-                            borderRadius: "8px",
-                            border: "1px solid var(--border-input)",
-                            backgroundColor: "var(--bg-input)",
-                            color: "var(--text-h)",
-                            minHeight: "100px",
-                            resize: "vertical"
-                        }}
-                    />
-                    <div style={{display: "flex", gap: "10px"}}>
-                        <button
-                            type="submit"
-                            disabled={postLoading}
-                            style={{
-                                flex: 1,
-                                padding: "10px 20px",
+            {!editingPost && (
+                <div style={{
+                    width: "100%",
+                    maxWidth: "500px",
+                    backgroundColor: "var(--bg-card)",
+                    padding: "20px",
+                    borderRadius: "12px",
+                    border: "1px solid var(--border-input)",
+                    marginBottom: "30px"
+                }}>
+                    <h2 style={{color: "var(--text-h)", fontSize: "1.5rem", marginBottom: "15px", textAlign: "center"}}>
+                        Post an Update
+                    </h2>
+                    <form onSubmit={handleCreatePost} style={{display: "flex", flexDirection: "column", gap: "10px"}}>
+                        <div style={{display: "flex", flexDirection: "column", gap: "10px", marginBottom: "5px"}}>
+                            <label style={{
+                                padding: "10px",
                                 borderRadius: "8px",
-                                backgroundColor: "var(--primary)",
-                                color: "white",
-                                border: "none",
+                                border: "1px dashed var(--border-input)",
+                                backgroundColor: "var(--bg-input)",
+                                color: "var(--text-h)",
                                 cursor: "pointer",
-                                fontWeight: "bold",
-                                opacity: postLoading ? 0.6 : 1
+                                textAlign: "center",
+                                display: "block",
+                                fontWeight: "bold"
+                            }}>
+                                Choose Files
+                                <input
+                                    type="file"
+                                    multiple
+                                    onChange={handleFileChange}
+                                    style={{display: "none"}}
+                                />
+                            </label>
+                            {attachedFiles.length > 0 && (
+                                <div style={{display: "flex", flexWrap: "wrap", gap: "5px"}}>
+                                    {attachedFiles.map((file, index) => (
+                                        <div key={index} style={{
+                                            backgroundColor: "var(--accent-muted)",
+                                            padding: "2px 8px",
+                                            borderRadius: "4px",
+                                            fontSize: "0.8rem",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "5px"
+                                        }}>
+                                            <span style={{color: "var(--text-h)"}}>{file.name}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeFile(index)}
+                                                style={{
+                                                    border: "none",
+                                                    background: "none",
+                                                    cursor: "pointer",
+                                                    color: "red",
+                                                    fontWeight: "bold"
+                                                }}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Title (mandatory)"
+                            value={newPostTitle}
+                            onChange={(e) => setNewPostTitle(e.target.value)}
+                            required
+                            style={{
+                                padding: "10px",
+                                borderRadius: "8px",
+                                border: "1px solid var(--border-input)",
+                                backgroundColor: "var(--bg-input)",
+                                color: "var(--text-h)"
                             }}
-                        >
-                            {postLoading ? (editingPost ? "Updating..." : "Posting...") : (editingPost ? "Update Post" : "Post Update")}
-                        </button>
-                        {editingPost && (
+                        />
+                        <textarea
+                            placeholder="Content (optional if media is present)"
+                            value={newPostContent}
+                            onChange={(e) => setNewPostContent(e.target.value)}
+                            style={{
+                                padding: "10px",
+                                borderRadius: "8px",
+                                border: "1px solid var(--border-input)",
+                                backgroundColor: "var(--bg-input)",
+                                color: "var(--text-h)",
+                                minHeight: "100px",
+                                resize: "vertical"
+                            }}
+                        />
+                        <div style={{display: "flex", gap: "10px"}}>
                             <button
-                                type="button"
-                                onClick={cancelEditing}
+                                type="submit"
+                                disabled={postLoading}
                                 style={{
+                                    flex: 1,
                                     padding: "10px 20px",
                                     borderRadius: "8px",
-                                    backgroundColor: "var(--bg-input)",
-                                    color: "var(--text-h)",
-                                    border: "1px solid var(--border-input)",
-                                    cursor: "pointer"
+                                    backgroundColor: "var(--primary)",
+                                    color: "white",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    fontWeight: "bold",
+                                    opacity: postLoading ? 0.6 : 1
                                 }}
                             >
-                                Cancel
+                                {postLoading ? "Posting..." : "Post Update"}
                             </button>
-                        )}
-                    </div>
-                </form>
-            </div>
+                        </div>
+                    </form>
+                </div>
+            )}
 
             <div style={{
                 width: "100%",
@@ -403,88 +533,313 @@ export const MissionaryView = () => {
                                 borderRadius: "12px",
                                 border: "1px solid var(--border-input)"
                             }}>
-                                <h3 style={{color: "var(--text-h)", marginBottom: "5px"}}>{post.title}</h3>
-                                <div style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    marginBottom: "10px"
-                                }}>
-                                    <p style={{color: "var(--text-muted)", fontSize: "0.8rem"}}>
-                                        {new Date(post.createdAt).toLocaleString([], {
-                                            dateStyle: 'short',
-                                            timeStyle: 'short'
-                                        })}
-                                        {post.updatedAt && new Date(post.updatedAt).getTime() > new Date(post.createdAt).getTime() + 1000 && (
-                                            <span style={{marginLeft: "10px", fontStyle: "italic"}}>
-                                                (Updated: {new Date(post.updatedAt).toLocaleString([], {
-                                                dateStyle: 'short',
-                                                timeStyle: 'short'
-                                            })})
-                                            </span>
+                                {editingPost?.id === post.id ? (
+                                    <form onSubmit={handleCreatePost}
+                                          style={{display: "flex", flexDirection: "column", gap: "10px"}}>
+                                        <h3 style={{
+                                            color: "var(--text-h)",
+                                            fontSize: "1.2rem",
+                                            marginBottom: "5px"
+                                        }}>Edit Update</h3>
+                                        <div style={{
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            gap: "10px",
+                                            marginBottom: "5px"
+                                        }}>
+                                            <label style={{
+                                                padding: "10px",
+                                                borderRadius: "8px",
+                                                border: "1px dashed var(--border-input)",
+                                                backgroundColor: "var(--bg-input)",
+                                                color: "var(--text-h)",
+                                                cursor: "pointer",
+                                                textAlign: "center",
+                                                display: "block",
+                                                fontWeight: "bold"
+                                            }}>
+                                                Add Files
+                                                <input
+                                                    type="file"
+                                                    multiple
+                                                    onChange={handleFileChange}
+                                                    style={{display: "none"}}
+                                                />
+                                            </label>
+                                            {(existingMedia.length > 0 || attachedFiles.length > 0) && (
+                                                <div style={{display: "flex", flexWrap: "wrap", gap: "5px"}}>
+                                                    {/* Existing Media */}
+                                                    {existingMedia.map((m) => (
+                                                        <div key={m.id} style={{
+                                                            backgroundColor: "var(--accent-muted)",
+                                                            padding: "2px 8px",
+                                                            borderRadius: "4px",
+                                                            fontSize: "0.8rem",
+                                                            display: "flex",
+                                                            alignItems: "center",
+                                                            gap: "5px"
+                                                        }}>
+                                                            <span style={{color: "var(--text-h)"}}>{m.fileName}</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeExistingMedia(m.id)}
+                                                                style={{
+                                                                    border: "none",
+                                                                    background: "none",
+                                                                    cursor: "pointer",
+                                                                    color: "red",
+                                                                    fontWeight: "bold"
+                                                                }}
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                    {/* Newly Attached Files */}
+                                                    {attachedFiles.map((file, index) => (
+                                                        <div key={`new-${index}`} style={{
+                                                            backgroundColor: "var(--primary-muted)",
+                                                            padding: "2px 8px",
+                                                            borderRadius: "4px",
+                                                            fontSize: "0.8rem",
+                                                            display: "flex",
+                                                            alignItems: "center",
+                                                            gap: "5px",
+                                                            border: "1px solid var(--primary)"
+                                                        }}>
+                                                            <span
+                                                                style={{color: "var(--text-h)"}}>{file.name} (new)</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeFile(index)}
+                                                                style={{
+                                                                    border: "none",
+                                                                    background: "none",
+                                                                    cursor: "pointer",
+                                                                    color: "red",
+                                                                    fontWeight: "bold"
+                                                                }}
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Title (mandatory)"
+                                            value={newPostTitle}
+                                            onChange={(e) => setNewPostTitle(e.target.value)}
+                                            required
+                                            style={{
+                                                padding: "10px",
+                                                borderRadius: "8px",
+                                                border: "1px solid var(--border-input)",
+                                                backgroundColor: "var(--bg-input)",
+                                                color: "var(--text-h)"
+                                            }}
+                                        />
+                                        <textarea
+                                            placeholder="Content (optional if media is present)"
+                                            value={newPostContent}
+                                            onChange={(e) => setNewPostContent(e.target.value)}
+                                            style={{
+                                                padding: "10px",
+                                                borderRadius: "8px",
+                                                border: "1px solid var(--border-input)",
+                                                backgroundColor: "var(--bg-input)",
+                                                color: "var(--text-h)",
+                                                minHeight: "100px",
+                                                resize: "vertical"
+                                            }}
+                                        />
+                                        <div style={{display: "flex", gap: "10px"}}>
+                                            <button
+                                                type="submit"
+                                                disabled={postLoading}
+                                                style={{
+                                                    flex: 1,
+                                                    padding: "8px 15px",
+                                                    borderRadius: "8px",
+                                                    backgroundColor: "var(--primary)",
+                                                    color: "white",
+                                                    border: "none",
+                                                    cursor: "pointer",
+                                                    fontWeight: "bold",
+                                                    opacity: postLoading ? 0.6 : 1
+                                                }}
+                                            >
+                                                {postLoading ? "Updating..." : "Update Post"}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={cancelEditing}
+                                                style={{
+                                                    padding: "8px 15px",
+                                                    borderRadius: "8px",
+                                                    backgroundColor: "var(--bg-input)",
+                                                    color: "var(--text-h)",
+                                                    border: "1px solid var(--border-input)",
+                                                    cursor: "pointer"
+                                                }}
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                ) : (
+                                    <>
+                                        {post.title &&
+                                            <h3 style={{color: "var(--text-h)", marginBottom: "5px"}}>{post.title}</h3>}
+                                        {post.media && post.media.length > 0 && (
+                                            <div style={{
+                                                display: "flex",
+                                                flexDirection: "column",
+                                                gap: "10px",
+                                                marginBottom: "10px",
+                                                marginTop: "10px"
+                                            }}>
+                                                {post.media.map(m => (
+                                                    <div key={m.id} style={{width: "100%"}}>
+                                                        {m.mediaType === "IMAGE" && (
+                                                            <img src={m.url} alt={m.fileName} style={{
+                                                                width: "100%",
+                                                                borderRadius: "8px",
+                                                                maxHeight: "300px",
+                                                                objectFit: "cover"
+                                                            }}/>
+                                                        )}
+                                                        {m.mediaType === "VIDEO" && (
+                                                            <video controls src={m.url} style={{
+                                                                width: "100%",
+                                                                borderRadius: "8px",
+                                                                maxHeight: "300px"
+                                                            }}/>
+                                                        )}
+                                                        {m.mediaType === "AUDIO" && (
+                                                            <audio controls src={m.url} style={{width: "100%"}}/>
+                                                        )}
+                                                        {m.mediaType === "DOCUMENT" && (
+                                                            <a href={m.url} target="_blank" rel="noreferrer" style={{
+                                                                display: "flex",
+                                                                alignItems: "center",
+                                                                gap: "10px",
+                                                                padding: "10px",
+                                                                backgroundColor: "var(--bg-input)",
+                                                                borderRadius: "8px",
+                                                                textDecoration: "none",
+                                                                color: "var(--accent)"
+                                                            }}>
+                                                                📎 {m.fileName}
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
                                         )}
-                                    </p>
-                                    <button
-                                        onClick={() => startEditing(post)}
-                                        style={{
-                                            padding: "3px 8px",
-                                            borderRadius: "4px",
-                                            backgroundColor: "transparent",
-                                            color: "var(--accent)",
-                                            border: "1px solid var(--accent)",
-                                            cursor: "pointer",
-                                            fontSize: "0.75rem"
-                                        }}
-                                    >
-                                        Edit
-                                    </button>
-                                </div>
-                                <p style={{
-                                    color: "var(--text)",
-                                    whiteSpace: "pre-wrap",
-                                    marginBottom: "20px"
-                                }}>{post.content}</p>
+                                        <div style={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "center",
+                                            marginBottom: "10px"
+                                        }}>
+                                            <p style={{color: "var(--text-muted)", fontSize: "0.8rem"}}>
+                                                {new Date(post.createdAt).toLocaleString([], {
+                                                    dateStyle: 'short',
+                                                    timeStyle: 'short'
+                                                })}
+                                                {post.updatedAt && new Date(post.updatedAt).getTime() > new Date(post.createdAt).getTime() + 1000 && (
+                                                    <span style={{marginLeft: "10px", fontStyle: "italic"}}>
+                                                        (Updated: {new Date(post.updatedAt).toLocaleString([], {
+                                                        dateStyle: 'short',
+                                                        timeStyle: 'short'
+                                                    })})
+                                                    </span>
+                                                )}
+                                            </p>
+                                            <div style={{display: "flex", gap: "5px"}}>
+                                                <button
+                                                    onClick={() => startEditing(post)}
+                                                    style={{
+                                                        padding: "3px 8px",
+                                                        borderRadius: "4px",
+                                                        backgroundColor: "transparent",
+                                                        color: "var(--accent)",
+                                                        border: "1px solid var(--accent)",
+                                                        cursor: "pointer",
+                                                        fontSize: "0.75rem"
+                                                    }}
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeletePost(post.id)}
+                                                    style={{
+                                                        padding: "3px 8px",
+                                                        borderRadius: "4px",
+                                                        backgroundColor: "transparent",
+                                                        color: "red",
+                                                        border: "1px solid red",
+                                                        cursor: "pointer",
+                                                        fontSize: "0.75rem"
+                                                    }}
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                        {post.content && (
+                                            <p style={{
+                                                color: "var(--text)",
+                                                whiteSpace: "pre-wrap",
+                                                marginBottom: "20px"
+                                            }}>{post.content}</p>
+                                        )}
 
-                                <CommentSection postId={post.id} postAuthorId={post.authorId}/>
+                                        <CommentSection postId={post.id} postAuthorId={post.authorId}/>
 
-                                <div style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "10px",
-                                    marginTop: "10px",
-                                    borderTop: "1px solid var(--border-input)",
-                                    paddingTop: "10px"
-                                }}>
-                                    <button
-                                        onClick={() => handleToggleLike(post.id)}
-                                        style={{
-                                            backgroundColor: post.liked ? "var(--accent)" : "transparent",
-                                            color: post.liked ? "white" : "var(--text-h)",
-                                            border: "1px solid var(--border-input)",
-                                            borderRadius: "8px",
-                                            padding: "5px 15px",
-                                            cursor: "pointer",
-                                            fontWeight: "bold",
+                                        <div style={{
                                             display: "flex",
                                             alignItems: "center",
-                                            gap: "5px",
-                                            transition: "all 0.2s"
-                                        }}
-                                    >
-                                        <span>{post.liked ? "❤️" : "🤍"}</span>
-                                        <span>Like</span>
-                                    </button>
-                                    <span style={{color: "var(--text-muted)", fontSize: "0.9rem"}}>
-                                        {post.lastLikerName ? (
-                                            <>
-                                                Liked by <strong>{post.lastLikerName}</strong>
-                                                {post.likeCount > 1 && ` and ${post.likeCount - 1} more`}
-                                            </>
-                                        ) : (
-                                            `${post.likeCount} ${post.likeCount === 1 ? "like" : "likes"}`
-                                        )}
-                                    </span>
-                                </div>
+                                            gap: "10px",
+                                            marginTop: "10px",
+                                            borderTop: "1px solid var(--border-input)",
+                                            paddingTop: "10px"
+                                        }}>
+                                            <button
+                                                onClick={() => handleToggleLike(post.id)}
+                                                style={{
+                                                    backgroundColor: post.liked ? "var(--accent)" : "transparent",
+                                                    color: post.liked ? "white" : "var(--text-h)",
+                                                    border: "1px solid var(--border-input)",
+                                                    borderRadius: "8px",
+                                                    padding: "5px 15px",
+                                                    cursor: "pointer",
+                                                    fontWeight: "bold",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: "5px",
+                                                    transition: "all 0.2s"
+                                                }}
+                                            >
+                                                <span>{post.liked ? "❤️" : "🤍"}</span>
+                                                <span>Like</span>
+                                            </button>
+                                            <span style={{color: "var(--text-muted)", fontSize: "0.9rem"}}>
+                                                {post.lastLikerName ? (
+                                                    <>
+                                                        Liked by <strong>{post.lastLikerName}</strong>
+                                                        {post.likeCount > 1 && ` and ${post.likeCount - 1} more`}
+                                                    </>
+                                                ) : (
+                                                    `${post.likeCount} ${post.likeCount === 1 ? "like" : "likes"}`
+                                                )}
+                                            </span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         ))}
                     </div>

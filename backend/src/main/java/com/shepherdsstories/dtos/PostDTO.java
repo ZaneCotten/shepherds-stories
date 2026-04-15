@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -20,7 +21,8 @@ public class PostDTO {
     private String authorName;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
-    private long likeCount;
-    private boolean liked;
+    private Long likeCount;
+    private Boolean liked;
     private String lastLikerName;
+    private List<MediaDTO> media;
 }

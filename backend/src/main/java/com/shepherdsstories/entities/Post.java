@@ -33,7 +33,7 @@ public class Post {
     @Column(name = "title", nullable = false, length = TITLE_MAX_LENGTH)
     private String title;
 
-    @Column(name = "content", nullable = false, length = POST_CONTENT_MAX_LENGTH)
+    @Column(name = "content", nullable = true, length = POST_CONTENT_MAX_LENGTH)
     private String content;
 
     @Column(name = "created_at", nullable = false)
