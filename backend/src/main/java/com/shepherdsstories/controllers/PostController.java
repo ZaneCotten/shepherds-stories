@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/posts")
 public class PostController {
     private static final Logger logger = LoggerFactory.getLogger(PostController.class);
+    private static final String POST_NOT_FOUND = "Post not found";
 
     private final PostRepository postRepository;
     private final MissionaryProfileRepository missionaryProfileRepository;
@@ -152,7 +153,7 @@ public class PostController {
         try {
             User user = getCurrentUser(authentication);
             Post post = postRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND));
 
             if (!post.getAuthor().getId().equals(user.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -178,13 +179,41 @@ public class PostController {
         }
     }
 
+    @DeleteMapping("/{id}")
+    @Transactional
+    public ResponseEntity<Void> deletePost(@PathVariable UUID id, Authentication authentication) {
+        try {
+            User user = getCurrentUser(authentication);
+            Post post = postRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND));
+
+            if (!post.getAuthor().getId().equals(user.getId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+
+            // Delete associated files from S3
+            post.getMedia().forEach(media -> s3Service.deleteObject(media.getS3Key()));
+
+            postRepository.delete(post);
+
+            return ResponseEntity.noContent().build();
+        } catch (UnauthenticatedException _) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        } catch (ResourceNotFoundException _) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Throwable t) {
+            logger.error("CRITICAL ERROR deleting post", t);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @PostMapping("/{id}/like")
     @Transactional
     public ResponseEntity<PostDTO> toggleLike(@PathVariable UUID id, Authentication authentication) {
         try {
             User user = getCurrentUser(authentication);
             Post post = postRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND));
 
             PostLikeId likeId = new PostLikeId();
             likeId.setPostId(post.getId());

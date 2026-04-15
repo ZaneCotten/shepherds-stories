@@ -223,6 +223,26 @@ export const MissionaryView = () => {
         setNewPostContent("");
     };
 
+    const handleDeletePost = async (postId) => {
+        if (!window.confirm("Are you sure you want to delete this post? This will also remove any attached files forever.")) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/posts/${postId}`, {
+                method: 'DELETE'
+            });
+            if (response.ok) {
+                setPosts(posts.filter(p => p.id !== postId));
+            } else {
+                alert("Failed to delete post.");
+            }
+        } catch (err) {
+            console.error("Delete post error:", err);
+            alert(`Error deleting post: ${err.message}`);
+        }
+    };
+
     const handleToggleLike = async (postId) => {
         try {
             const response = await fetch(`/api/posts/${postId}/like`, {
@@ -586,20 +606,36 @@ export const MissionaryView = () => {
                                             </span>
                                         )}
                                     </p>
-                                    <button
-                                        onClick={() => startEditing(post)}
-                                        style={{
-                                            padding: "3px 8px",
-                                            borderRadius: "4px",
-                                            backgroundColor: "transparent",
-                                            color: "var(--accent)",
-                                            border: "1px solid var(--accent)",
-                                            cursor: "pointer",
-                                            fontSize: "0.75rem"
-                                        }}
-                                    >
-                                        Edit
-                                    </button>
+                                    <div style={{display: "flex", gap: "5px"}}>
+                                        <button
+                                            onClick={() => startEditing(post)}
+                                            style={{
+                                                padding: "3px 8px",
+                                                borderRadius: "4px",
+                                                backgroundColor: "transparent",
+                                                color: "var(--accent)",
+                                                border: "1px solid var(--accent)",
+                                                cursor: "pointer",
+                                                fontSize: "0.75rem"
+                                            }}
+                                        >
+                                            Edit
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeletePost(post.id)}
+                                            style={{
+                                                padding: "3px 8px",
+                                                borderRadius: "4px",
+                                                backgroundColor: "transparent",
+                                                color: "red",
+                                                border: "1px solid red",
+                                                cursor: "pointer",
+                                                fontSize: "0.75rem"
+                                            }}
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
                                 </div>
                                 {post.content && (
                                     <p style={{
