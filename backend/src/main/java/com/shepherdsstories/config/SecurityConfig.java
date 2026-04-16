@@ -6,7 +6,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
@@ -156,7 +155,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, CustomOAuth2UserService customOAuth2UserService, CustomOidcUserService customOidcUserService, org.springframework.security.web.authentication.AuthenticationSuccessHandler oauth2SuccessHandler, org.springframework.security.web.authentication.AuthenticationSuccessHandler formLoginSuccessHandler, org.springframework.security.web.authentication.AuthenticationFailureHandler formLoginFailureHandler, SecurityContextRepository securityContextRepository) {
         return http
-                .csrf(AbstractHttpConfigurer::disable)
+                .csrf(withDefaults())
                 .cors(withDefaults())
                 .securityContext(context -> context.securityContextRepository(securityContextRepository))
                 .authorizeHttpRequests(auth -> {
