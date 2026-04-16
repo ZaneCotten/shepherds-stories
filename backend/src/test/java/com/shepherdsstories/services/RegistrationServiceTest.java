@@ -37,6 +37,8 @@ class RegistrationServiceTest {
     private UserFactory userFactory;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private EmailService emailService;
 
     private RegistrationService registrationService;
 
@@ -48,12 +50,13 @@ class RegistrationServiceTest {
                 supporterProfileRepository,
                 inviteCodeRepository,
                 userFactory,
-                passwordEncoder
+                passwordEncoder,
+                emailService
         );
     }
 
     @Test
-    void register_Missionary_SavesUserAndMissionaryProfile() {
+    void register_Missionary_SavesUserAndMissionaryProfileAndSendsEmail() {
         RegistrationRequestDTO dto = new RegistrationRequestDTO();
         dto.setEmail("missionary@example.com");
         dto.setPassword("password");
@@ -81,6 +84,52 @@ class RegistrationServiceTest {
         verify(missionaryProfileRepository).save(profile);
         verify(inviteCodeRepository).save(inviteCode);
         verify(supporterProfileRepository, never()).save(any());
+        verify(emailService).sendVerificationEmail(eq("missionary@example.com"), anyString());
+        assert Boolean.FALSE.equals(user.getIsEmailVerified());
+        assert user.getVerificationToken() != null;
+    }
+
+    @Test
+    void registerSocial_SetsEmailVerifiedTrue() {
+        RegistrationRequestDTO dto = new RegistrationRequestDTO();
+        dto.setEmail("social@example.com");
+        dto.setRole(Role.SUPPORTER);
+        String oauthId = "GOOGLE:social@example.com";
+
+        User user = new User();
+        user.setEmail(dto.getEmail());
+        user.setRole(Role.SUPPORTER);
+
+        SupporterProfile profile = new SupporterProfile();
+        profile.setUser(user);
+
+        when(userFactory.createBaseUser(dto)).thenReturn(user);
+        when(userRepository.save(any(User.class))).thenReturn(user);
+        when(userFactory.createSupporter(user, dto)).thenReturn(profile);
+
+        registrationService.registerSocial(dto, oauthId, AuthProvider.GOOGLE);
+
+        verify(userRepository).save(user);
+        assert Boolean.TRUE.equals(user.getIsEmailVerified());
+        verify(emailService, never()).sendVerificationEmail(anyString(), anyString());
+    }
+
+    @Test
+    void verifyEmail_ValidToken_UpdatesUser() {
+        String token = "valid-token";
+        User user = new User();
+        user.setEmail("test@example.com");
+        user.setIsEmailVerified(false);
+        user.setVerificationToken(token);
+        user.setVerificationTokenExpiry(java.time.OffsetDateTime.now().plusHours(1));
+
+        when(userRepository.findByVerificationToken(token)).thenReturn(java.util.Optional.of(user));
+
+        registrationService.verifyEmail(token);
+
+        verify(userRepository).save(user);
+        assert Boolean.TRUE.equals(user.getIsEmailVerified());
+        assert user.getVerificationToken() == null;
     }
 
     @Test

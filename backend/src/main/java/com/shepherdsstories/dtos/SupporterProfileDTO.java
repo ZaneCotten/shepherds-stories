@@ -8,5 +8,4 @@ import lombok.Setter;
 public class SupporterProfileDTO extends UserProfileDTO {
     private String firstName;
     private String lastName;
-    private Boolean isVerified;
 }

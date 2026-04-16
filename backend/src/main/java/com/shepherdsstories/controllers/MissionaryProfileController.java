@@ -58,29 +58,24 @@ public class MissionaryProfileController {
     @GetMapping("/requests")
     @Transactional(readOnly = true)
     public ResponseEntity<List<Map<String, Object>>> getPendingRequests() {
-        try {
-            User user = getCurrentUser();
-            List<ConnectionRequest> requests = connectionRepository.findByMissionaryIdAndStatus(user.getId(), RequestStatus.PENDING);
+        User user = getCurrentUser();
+        List<ConnectionRequest> requests = connectionRepository.findByMissionaryIdAndStatus(user.getId(), RequestStatus.PENDING);
 
-            List<Map<String, Object>> response = requests.stream()
-                    .map(req -> {
-                        String supporterName = "Unknown Supporter";
-                        if (req.getSupporter() != null) {
-                            supporterName = req.getSupporter().getFirstName() + " " + req.getSupporter().getLastName();
-                        }
-                        return Map.of(
-                                "id", req.getId(),
-                                "supporterName", supporterName,
-                                "createdAt", (Object) (req.getCreatedAt() != null ? req.getCreatedAt().toString() : "")
-                        );
-                    })
-                    .collect(Collectors.toList());
+        List<Map<String, Object>> response = requests.stream()
+                .map(req -> {
+                    String supporterName = "Unknown Supporter";
+                    if (req.getSupporter() != null) {
+                        supporterName = req.getSupporter().getFirstName() + " " + req.getSupporter().getLastName();
+                    }
+                    return Map.of(
+                            "id", req.getId(),
+                            "supporterName", supporterName,
+                            "createdAt", (Object) (req.getCreatedAt() != null ? req.getCreatedAt().toString() : "")
+                    );
+                })
+                .collect(Collectors.toList());
 
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("Error fetching pending requests", e);
-            return ResponseEntity.status(500).build();
-        }
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/requests/{requestId}/respond")
@@ -141,101 +136,86 @@ public class MissionaryProfileController {
     @GetMapping("/profile")
     @Transactional(readOnly = true)
     public ResponseEntity<MissionaryProfileDTO> getProfile() {
-        try {
-            User user = getCurrentUser();
+        User user = getCurrentUser();
 
-            MissionaryProfile profile = missionaryProfileRepository.findById(user.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException(MISSIONARY_PROFILE_NOT_FOUND));
+        MissionaryProfile profile = missionaryProfileRepository.findById(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException(MISSIONARY_PROFILE_NOT_FOUND));
 
-            MissionaryProfileDTO dto = new MissionaryProfileDTO();
-            dto.setMissionaryName(profile.getMissionaryName());
-            dto.setLocationRegion(profile.getLocationRegion());
-            dto.setBiography(profile.getBiography());
-            dto.setReferenceNumber(profile.getReferenceNumber());
-            dto.setIsReferenceDisabled(profile.getIsReferenceDisabled());
+        MissionaryProfileDTO dto = new MissionaryProfileDTO();
+        dto.setMissionaryName(profile.getMissionaryName());
+        dto.setLocationRegion(profile.getLocationRegion());
+        dto.setBiography(profile.getBiography());
+        dto.setReferenceNumber(profile.getReferenceNumber());
+        dto.setIsReferenceDisabled(profile.getIsReferenceDisabled());
 
-            // Populate UserProfileDTO fields
-            dto.setId(user.getId());
-            dto.setEmail(user.getEmail());
-            dto.setRole(user.getRole().name());
-            dto.setDisplayName(profile.getMissionaryName());
+        // Populate UserProfileDTO fields
+        dto.setId(user.getId());
+        dto.setEmail(user.getEmail());
+        dto.setRole(user.getRole().name());
+        dto.setDisplayName(profile.getMissionaryName());
 
-            return ResponseEntity.ok(dto);
-        } catch (Exception e) {
-            logger.error("Error fetching missionary profile", e);
-            return ResponseEntity.status(500).build();
-        }
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping("/profile/toggle-reference")
     @Transactional
     public ResponseEntity<Map<String, Object>> toggleReferenceStatus() {
-        try {
-            User user = getCurrentUser();
-            MissionaryProfile profile = missionaryProfileRepository.findById(user.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException(MISSIONARY_PROFILE_NOT_FOUND));
+        User user = getCurrentUser();
+        MissionaryProfile profile = missionaryProfileRepository.findById(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException(MISSIONARY_PROFILE_NOT_FOUND));
 
-            boolean currentStatus = profile.getIsReferenceDisabled() != null && profile.getIsReferenceDisabled();
-            boolean newStatus = !currentStatus;
-            profile.setIsReferenceDisabled(newStatus);
+        boolean currentStatus = profile.getIsReferenceDisabled() != null && profile.getIsReferenceDisabled();
+        boolean newStatus = !currentStatus;
+        profile.setIsReferenceDisabled(newStatus);
 
-            // Update associated invite codes: if disabled, set isActive to false; if enabled, set isActive to true
-            if (profile.getInviteCodes() != null) {
-                for (InviteCode code : profile.getInviteCodes()) {
-                    // We only want to enable the current reference code if it was the one disabled
-                    // But the requirement says "when enabled/disabled", let's assume it applies to all or the current one.
-                    // Usually, only one should be active anyway.
-                    if (code.getCodeString().equalsIgnoreCase(profile.getReferenceNumber())) {
-                        code.setIsActive(!newStatus);
-                    }
+        // Update associated invite codes: if disabled, set isActive to false; if enabled, set isActive to true
+        if (profile.getInviteCodes() != null) {
+            for (InviteCode code : profile.getInviteCodes()) {
+                // We only want to enable the current reference code if it was the one disabled
+                // But the requirement says "when enabled/disabled", let's assume it applies to all or the current one.
+                // Usually, only one should be active anyway.
+                if (code.getCodeString().equalsIgnoreCase(profile.getReferenceNumber())) {
+                    code.setIsActive(!newStatus);
                 }
             }
-            missionaryProfileRepository.save(profile);
-
-            return ResponseEntity.ok(Map.of(
-                    MESSAGE_KEY, profile.getIsReferenceDisabled() ? "Reference code disabled" : "Reference code enabled",
-                    "isDisabled", profile.getIsReferenceDisabled()
-            ));
-        } catch (Exception e) {
-            logger.error("Error toggling reference status", e);
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error"));
         }
+        missionaryProfileRepository.save(profile);
+
+        return ResponseEntity.ok(Map.of(
+                MESSAGE_KEY, profile.getIsReferenceDisabled() ? "Reference code disabled" : "Reference code enabled",
+                "isDisabled", profile.getIsReferenceDisabled()
+        ));
     }
 
     @PostMapping("/profile/generate-code")
     @Transactional
     public ResponseEntity<Map<String, String>> generateNewInviteCode() {
-        try {
-            User user = getCurrentUser();
-            MissionaryProfile profile = missionaryProfileRepository.findById(user.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException(MISSIONARY_PROFILE_NOT_FOUND));
+        User user = getCurrentUser();
+        MissionaryProfile profile = missionaryProfileRepository.findById(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException(MISSIONARY_PROFILE_NOT_FOUND));
 
-            // Generate new code
-            String newCode = CodeGenerator.generateReference(ValidationConstants.REF_CODE_LENGTH);
+        // Generate new code
+        String newCode = CodeGenerator.generateReference(ValidationConstants.REF_CODE_LENGTH);
 
-            // Update profile's main reference number
-            profile.setReferenceNumber(newCode);
-            // Ensure the reference is enabled when a new code is generated
-            profile.setIsReferenceDisabled(false);
-            missionaryProfileRepository.save(profile);
+        // Update profile's main reference number
+        profile.setReferenceNumber(newCode);
+        // Ensure the reference is enabled when a new code is generated
+        profile.setIsReferenceDisabled(false);
+        missionaryProfileRepository.save(profile);
 
-            // Delete old invite codes and create new one
-            inviteCodeRepository.deleteByMissionaryId(user.getId());
+        // Delete old invite codes and create new one
+        inviteCodeRepository.deleteByMissionaryId(user.getId());
 
-            InviteCode inviteCode = new InviteCode();
-            inviteCode.setMissionary(profile);
-            inviteCode.setCodeString(newCode);
-            inviteCode.setIsActive(true);
-            inviteCode.setCreatedAt(OffsetDateTime.now());
-            inviteCodeRepository.save(inviteCode);
+        InviteCode inviteCode = new InviteCode();
+        inviteCode.setMissionary(profile);
+        inviteCode.setCodeString(newCode);
+        inviteCode.setIsActive(true);
+        inviteCode.setCreatedAt(OffsetDateTime.now());
+        inviteCodeRepository.save(inviteCode);
 
-            return ResponseEntity.ok(Map.of(
-                    MESSAGE_KEY, "New invite code generated successfully",
-                    "newCode", newCode
-            ));
-        } catch (Exception e) {
-            logger.error("Error generating new invite code", e);
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error"));
-        }
+        return ResponseEntity.ok(Map.of(
+                MESSAGE_KEY, "New invite code generated successfully",
+                "newCode", newCode
+        ));
     }
 }

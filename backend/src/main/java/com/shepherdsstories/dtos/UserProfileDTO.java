@@ -17,4 +17,5 @@ public class UserProfileDTO {
     private String role;
     private String profilePictureUrl;
     private String displayName; // Combined name based on profile type
+    private Boolean isEmailVerified;
 }

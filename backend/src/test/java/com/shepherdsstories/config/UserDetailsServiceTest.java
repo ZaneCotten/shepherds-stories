@@ -39,6 +39,7 @@ class UserDetailsServiceTest {
         user.setPasswordHash("hashed_password");
         user.setRole(Role.MISSIONARY);
         user.setIsLocked(false);
+        user.setIsEmailVerified(true);
 
         when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
 
@@ -59,6 +60,7 @@ class UserDetailsServiceTest {
         user.setPasswordHash("hashed_password");
         user.setRole(Role.SUPPORTER);
         user.setIsLocked(true);
+        user.setIsEmailVerified(true);
 
         when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
 
@@ -66,6 +68,24 @@ class UserDetailsServiceTest {
 
         assertNotNull(userDetails);
         assertFalse(userDetails.isEnabled());
+    }
+
+    @Test
+    void loadUserByUsername_EmailNotVerified_ReturnsUserDetailsWithEnabledAccount() {
+        String email = "unverified@example.com";
+        User user = new User();
+        user.setEmail(email);
+        user.setPasswordHash("hashed_password");
+        user.setRole(Role.SUPPORTER);
+        user.setIsLocked(false);
+        user.setIsEmailVerified(false);
+
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+
+        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+        assertNotNull(userDetails);
+        assertTrue(userDetails.isEnabled());
     }
 
     @Test

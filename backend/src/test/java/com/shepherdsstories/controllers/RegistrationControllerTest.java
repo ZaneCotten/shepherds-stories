@@ -233,6 +233,7 @@ class RegistrationControllerTest {
         assertEquals("User registered successfully", body.get("message"));
         assertEquals(savedUser.getId(), body.get("id"));
         verify(registrationService).register(dto);
+        verify(securityContextRepository).saveContext(any(), eq(httpRequest), eq(httpResponse));
     }
 
     @Test
@@ -262,6 +263,38 @@ class RegistrationControllerTest {
         assertEquals("User registered successfully", body.get("message"));
         assertEquals(savedUser.getId(), body.get("id"));
         verify(registrationService).register(dto);
+        verify(securityContextRepository).saveContext(any(), eq(httpRequest), eq(httpResponse));
+    }
+
+    @Test
+    void verifyEmail_Success() {
+        String token = "valid-token";
+        ResponseEntity<Map<String, Object>> response = registrationController.verifyEmail(token);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("Email verified successfully", response.getBody().get("message"));
+        verify(registrationService).verifyEmail(token);
+    }
+
+    @Test
+    void verifyEmail_InvalidToken_ReturnsBadRequest() {
+        String token = "invalid-token";
+        doThrow(new IllegalArgumentException("Invalid verification token")).when(registrationService).verifyEmail(token);
+
+        ResponseEntity<Map<String, Object>> response = registrationController.verifyEmail(token);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Invalid verification token", response.getBody().get("error"));
+    }
+
+    @Test
+    void resendVerification_Success() {
+        String email = "test@example.com";
+        ResponseEntity<Map<String, Object>> response = registrationController.resendVerification(email);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("Verification email resent successfully", response.getBody().get("message"));
+        verify(registrationService).resendVerificationEmail(email);
     }
 
     @Test

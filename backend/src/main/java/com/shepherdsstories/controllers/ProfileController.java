@@ -22,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/profile")
@@ -152,7 +151,6 @@ public class ProfileController {
             if (profile != null) {
                 dto.setFirstName(profile.getFirstName());
                 dto.setLastName(profile.getLastName());
-                dto.setIsVerified(profile.getIsVerified());
                 dto.setDisplayName(profileService.getUserDisplayName(user));
             }
             return dto;
@@ -169,5 +167,6 @@ public class ProfileController {
         dto.setEmail(user.getEmail());
         dto.setRole(user.getRole().name());
         dto.setProfilePictureUrl(profilePictureUrl);
+        dto.setIsEmailVerified(user.getIsEmailVerified());
     }
 }

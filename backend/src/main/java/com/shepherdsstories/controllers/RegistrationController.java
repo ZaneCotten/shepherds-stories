@@ -1,5 +1,6 @@
 package com.shepherdsstories.controllers;
 
+import com.shepherdsstories.config.UserAuthConfig;
 import com.shepherdsstories.data.enums.AuthProvider;
 import com.shepherdsstories.data.enums.Role;
 import com.shepherdsstories.data.repositories.UserRepository;
@@ -76,21 +77,50 @@ public class RegistrationController {
         }
 
         registrationService.register(request);
-        authenticateUser(request.getEmail(), request.getRole().name(), httpRequest, httpResponse);
-
         User user = userRepository.findByEmailIgnoreCase(normalizedEmail).orElseThrow();
+        authenticateUser(user, httpRequest, httpResponse);
+
         return ResponseEntity.ok(java.util.Map.of(
                 "message", "User registered successfully",
                 "id", user.getId(),
                 "username", user.getEmail(),
-                "role", user.getRole().name()
+                "role", user.getRole().name(),
+                "isEmailVerified", user.getIsEmailVerified()
         ));
     }
 
-    private void authenticateUser(String email, String role, HttpServletRequest request, HttpServletResponse response) {
+    @PostMapping("/verify-email")
+    public ResponseEntity<java.util.Map<String, Object>> verifyEmail(@org.springframework.web.bind.annotation.RequestParam String token) {
+        try {
+            registrationService.verifyEmail(token);
+            return ResponseEntity.ok(java.util.Map.of("message", "Email verified successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(ERROR_KEY, e.getMessage()));
+        }
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<java.util.Map<String, Object>> resendVerification(@org.springframework.web.bind.annotation.RequestParam String email) {
+        try {
+            registrationService.resendVerificationEmail(email);
+            return ResponseEntity.ok(java.util.Map.of("message", "Verification email resent successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(ERROR_KEY, e.getMessage()));
+        }
+    }
+
+    private void authenticateUser(User user, HttpServletRequest request, HttpServletResponse response) {
+        UserAuthConfig.AppUserDetails userDetails = new UserAuthConfig.AppUserDetails(
+                user.getId(),
+                user.getEmail(),
+                "",
+                true,
+                java.util.Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority(user.getRole().name()))
+        );
+
         org.springframework.security.authentication.UsernamePasswordAuthenticationToken token =
                 new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
-                        email, null, java.util.Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority(role)));
+                        userDetails, null, userDetails.getAuthorities());
 
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(token);
@@ -149,14 +179,15 @@ public class RegistrationController {
         dto.setProfilePictureUrl(request.profilePictureUrl());
 
         registrationService.registerSocial(dto, oauthId, provider);
-        authenticateUser(email, role.name(), httpRequest, httpResponse);
-
         User user = userRepository.findByEmailIgnoreCase(email).orElseThrow();
+        authenticateUser(user, httpRequest, httpResponse);
+
         return ResponseEntity.ok(java.util.Map.of(
                 "message", "User registered successfully",
                 "id", user.getId(),
                 "username", user.getEmail(),
-                "role", user.getRole().name()
+                "role", user.getRole().name(),
+                "isEmailVerified", user.getIsEmailVerified()
         ));
     }
 }

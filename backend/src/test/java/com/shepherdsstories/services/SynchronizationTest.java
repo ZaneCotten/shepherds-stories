@@ -38,6 +38,8 @@ class SynchronizationTest {
     private UserFactory userFactory;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private EmailService emailService;
 
     private RegistrationService registrationService;
 
@@ -49,7 +51,8 @@ class SynchronizationTest {
                 supporterProfileRepository,
                 inviteCodeRepository,
                 userFactory,
-                passwordEncoder
+                passwordEncoder,
+                emailService
         );
     }
 

@@ -5,12 +5,9 @@ import com.shepherdsstories.entities.InviteCode;
 import com.shepherdsstories.entities.MissionaryProfile;
 import com.shepherdsstories.entities.SupporterProfile;
 import com.shepherdsstories.entities.User;
-import com.shepherdsstories.utils.CodeGenerator;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
-
-import static com.shepherdsstories.utils.ValidationConstants.REF_CODE_LENGTH;
 
 @Component
 public class UserFactory {
@@ -64,7 +61,10 @@ public class UserFactory {
         user.setIsLocked(false);
         user.setCreatedAt(OffsetDateTime.now());
         user.setUpdatedAt(OffsetDateTime.now());
-        user.setProfilePictureKey(dto.getProfilePictureUrl());
+        String profilePictureUrl = dto.getProfilePictureUrl();
+        if (profilePictureUrl != null && !profilePictureUrl.isBlank()) {
+            user.setProfilePictureKey(profilePictureUrl.trim());
+        }
         return user;
     }
 
@@ -96,7 +96,6 @@ public class UserFactory {
         profile.setFirstName(defaultFirstName(dto.getFirstName(), dto.getEmail()));
         profile.setLastName(defaultLastName(dto.getLastName()));
         profile.setCreatedAt(OffsetDateTime.now());
-        profile.setIsVerified(false);
         return profile;
     }
 
@@ -106,7 +105,6 @@ public class UserFactory {
         profile.setFirstName(fallbackNameFromEmail(user.getEmail(), "Supporter"));
         profile.setLastName("Account");
         profile.setCreatedAt(OffsetDateTime.now());
-        profile.setIsVerified(false);
         return profile;
     }
 }

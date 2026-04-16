@@ -48,12 +48,22 @@ public class User {
     @Column(name = "is_locked")
     private Boolean isLocked;
 
+    @ColumnDefault("false")
+    @Column(name = "is_email_verified", nullable = false)
+    private Boolean isEmailVerified = false;
+
+    @Column(name = "verification_token")
+    private String verificationToken;
+
+    @Column(name = "verification_token_expiry")
+    private OffsetDateTime verificationTokenExpiry;
+
     @ColumnDefault("now()")
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
     @ColumnDefault("now()")
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
     @Column(name = "profile_picture_key")
