@@ -1,46 +1,14 @@
 import {Link} from "react-router-dom";
+import PublicHeader from "../components/PublicHeader.jsx";
 
 const HomePage = () => (
-    <div style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "40px 16px",
-        textAlign: "center"
-    }}>
-        <h1 style={{fontSize: "4rem", marginBottom: "40px"}}>Shepherds' Stories</h1>
-        <p style={{fontSize: "1.5rem", maxWidth: "800px", marginBottom: "40px", color: "var(--text)"}}>
-            Connecting missionaries and supporters through stories that inspire and transform.
-        </p>
-        <div style={{display: "flex", gap: "20px"}}>
-            <Link
-                to="/login"
-                style={{
-                    padding: "12px 24px",
-                    borderRadius: "8px",
-                    backgroundColor: "var(--primary)",
-                    color: "white",
-                    textDecoration: "none",
-                    fontWeight: "bold"
-                }}
-            >
-                Login
-            </Link>
-            <Link
-                to="/register"
-                style={{
-                    padding: "12px 24px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--border-input)",
-                    color: "var(--text-h)",
-                    textDecoration: "none",
-                    fontWeight: "bold"
-                }}
-            >
-                Register
-            </Link>
+    <div className="home-page">
+        <PublicHeader/>
+        <h1>Shepherds' Stories</h1>
+        <p>Connecting missionaries and supporters through stories that inspire and transform.</p>
+        <div className="action-buttons">
+            <Link to="/login" className="button primary border-4 border-cyan-500 px-4 py-2  rounded-4xl">Login</Link>
+            <Link to="/register" className="button secondary">Register</Link>
         </div>
     </div>
 );

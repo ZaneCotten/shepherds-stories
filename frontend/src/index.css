@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 :root {
     --text: #cbd5e1;
     --text-h: #f8fafc;
@@ -29,6 +31,27 @@
     @media (max-width: 1024px) {
         font-size: 16px;
     }
+}
+
+@theme {
+    --color-primary: #8EA58C;
+    --color-accent-light-green: #BFCFBB;
+    --color-accent-mid-green: #738A6E;
+    --color-accent-dark-green: #344C3D;
+    --color-black: #222222;
+    --color-white: #FAFAFA;
+
+    --text-header-1: 57px;
+    --text-header-2: 47px;
+    --text-header-3: 40px;
+    --text-header-4: 33px;
+    --text-header-5: 27px;
+    --text-header-6: 23px;
+
+    --text-body-large: 19px;
+    --text-body-medium: 16px;
+    --text-body-small: 13px;
+
 }
 
 body {
