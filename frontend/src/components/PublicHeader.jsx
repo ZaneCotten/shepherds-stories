@@ -1,20 +1,21 @@
-import {Link, NavLink} from "react-router-dom";
+import {NavLink} from "react-router-dom";
 
 export const PublicHeader = () => {
     return (
         <>
-            <header className="public-header">
+            <header className="public-header drop-shadow-md">
                 <div className="flex justify-between items-center px-4 py-6 bg-primary text-white">
-                    <p className="text-header-2 font-bold">
+                    <h1 className="text-header-4 font-bold inline-block hover:scale-103 transition-all duration-300">
                         <NavLink to="/home">
                             Shepherds' Stories
                         </NavLink>
-                    </p>
+                    </h1>
                     <nav className="public-header-nav" style={{marginRight: '50px'}}>
                         <ul className="flex space-x-8">
                             <li>
                                 <NavLink
                                     to="/home"
+                                    className="inline-block hover:scale-105 hover:text-accent-light-green duration-300"
                                     style={({isActive}) => ({
                                         textDecoration: isActive ? 'underline' : 'none'
                                     })}
@@ -26,6 +27,7 @@ export const PublicHeader = () => {
                             <li>
                                 <NavLink
                                     to="/about"
+                                    className="inline-block hover:scale-105 hover:text-accent-light-green duration-300"
                                     style={({isActive}) => ({
                                         textDecoration: isActive ? 'underline' : 'none'
                                     })}
@@ -36,6 +38,7 @@ export const PublicHeader = () => {
                             <li>
                                 <NavLink
                                     to="/register"
+                                    className="inline-block hover:scale-105 hover:text-accent-light-green duration-300"
                                     style={({isActive}) => ({
                                         textDecoration: isActive ? 'underline' : 'none'
                                     })}
@@ -46,6 +49,7 @@ export const PublicHeader = () => {
                             <li>
                                 <NavLink
                                     to="/login"
+                                    className="inline-block hover:scale-105 hover:text-accent-light-green duration-300"
                                     style={({isActive}) => ({
                                         textDecoration: isActive ? 'underline' : 'none'
                                     })}
