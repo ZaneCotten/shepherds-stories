@@ -7,6 +7,7 @@ import MissionaryView from "./pages/MissionaryView.jsx";
 import SupporterView from "./pages/SupporterView.jsx";
 import OAuthRoleSelectionPage from "./pages/OAuthRoleSelectionPage.jsx";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage.jsx";
+import AboutPage from "./pages/AboutPage.jsx";
 
 function App() {
     const [user, setUser] = useState(() => {
@@ -34,6 +35,7 @@ function App() {
                 <Route path="/register/select-role" element={<OAuthRoleSelectionPage onLogin={handleLogin}/>}/>
                 <Route path="/oauth/callback" element={<OAuthCallbackPage onLogin={handleLogin}/>}/>
                 <Route path="/home" element={<HomePage/>}/>
+                <Route path="/about" element={<AboutPage/>}/>
 
                 {/* Route Protection based on Role */}
                 <Route
