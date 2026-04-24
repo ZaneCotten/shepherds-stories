@@ -1,6 +1,6 @@
 import React, {useState} from 'react';
 import axios from 'axios';
-import {Link, useNavigate} from 'react-router-dom';
+import {Link, NavLink, useNavigate} from 'react-router-dom';
 import PublicHeader from "../components/PublicHeader.jsx";
 
 const LoginPage = ({onLogin}) => {
@@ -51,53 +51,25 @@ const LoginPage = ({onLogin}) => {
         <>
             <PublicHeader/>
 
-            <div style={{
-                minHeight: '100vh',
-                padding: '40px 16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-            }}>
-                <div
-                    style={{
-                        width: '100%',
-                        maxWidth: '420px',
-                        padding: '28px',
-                        backgroundColor: 'var(--bg-card)',
-                        color: 'var(--text)',
-                        borderRadius: '12px',
-                        border: '1px solid var(--border)'
-                    }}
-                >
-                    <h2 style={{marginBottom: '20px', color: 'var(--text-h)', textAlign: 'center'}}>Login</h2>
-                    {error &&
-                        <div style={{color: 'var(--error)', marginBottom: '12px', textAlign: 'center'}}>{error}</div>}
-                    <form onSubmit={handleLogin}>
+            <div
+                className="bg-white flex min-h-screen"
+            >
+
+                <div className="w-full p-6 bg-white rounded-lg shadow-md flex flex-col items-center justify-center">
+                    <h2 className="mb-8 text-header-1 font-sans:roboto text-center text-accent-mid-green">Log in</h2>
+                    {error && <div className="text-red-500">{error}</div>}
+                    <form
+                        onSubmit={handleLogin}
+                        className="flex flex-col items-center"
+                    >
                         <input
-                            style={{
-                                width: '100%',
-                                marginBottom: '12px',
-                                boxSizing: 'border-box',
-                                padding: '12px',
-                                borderRadius: '8px',
-                                border: '1px solid var(--border-input)',
-                                backgroundColor: 'var(--bg-input)',
-                                color: 'var(--text-h)'
-                            }}
+                            className="block w-md mb-4 px-4 py-2 rounded border border-gray-300 focus:outline-none focus:scale-105 focus:border-accent-mid-green transition-all duration-300"
                             placeholder="Email"
+                            autoFocus
                             onChange={(e) => setEmail(e.target.value)}
                         />
                         <input
-                            style={{
-                                width: '100%',
-                                marginBottom: '16px',
-                                boxSizing: 'border-box',
-                                padding: '12px',
-                                borderRadius: '8px',
-                                border: '1px solid var(--border-input)',
-                                backgroundColor: 'var(--bg-input)',
-                                color: 'var(--text-h)'
-                            }}
+                            className="block w-md mb-4 px-4 py-2 rounded border border-gray-300 focus:outline-none focus:scale-105 focus:border-accent-mid-green transition-all duration-300"
                             type="password"
                             placeholder="Password"
                             onChange={(e) => setPassword(e.target.value)}
@@ -105,49 +77,66 @@ const LoginPage = ({onLogin}) => {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            style={{
-                                width: '100%',
-                                padding: '12px',
-                                borderRadius: '8px',
-                                border: 'none',
-                                backgroundColor: 'var(--primary)',
-                                color: 'white',
-                                cursor: 'pointer',
-                                fontWeight: 'bold'
-                            }}
+                            className="w-1/2 px-4 py-2.5 rounded bg-accent-mid-green text-white hover:bg-accent-light-green hover:scale-105 drop-shadow-md hover:cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent-mid-green focus:ring-offset-2 transition-all duration-300"
                         >
-                            {isLoading ? 'Logging in...' : 'Login'}
+                            {isLoading ?
+                                (
+                                    <>
+                                        <div
+                                            className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>
+                                        Logging in...
+                                    </>
+                                )
+                                : 'Login'}
                         </button>
                     </form>
-                    <div className="social-login">
+                    <div
+                        className="my-4 flex flex-col items-center"
+                    >
                         <button
                             onClick={() => window.location.href = 'http://localhost:8080/oauth2/authorization/google'}
-                            style={{
-                                width: '100%',
-                                marginTop: '12px',
-                                padding: '12px',
-                                borderRadius: '8px',
-                                border: '1px solid var(--border-input)',
-                                backgroundColor: 'var(--bg-input)',
-                                color: 'var(--text-h)',
-                                cursor: 'pointer'
-                            }}
+                            className="drop-shadow-md inline-flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 bg-white border border-gray-300 shadow-sm hover:bg-gray-100 hover:scale-105 hover:cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300"
                         >
-                            Continue with Google
+                            <img className="h-5 w-5" src="https://authjs.dev/img/providers/google.svg"
+                                 alt="Google Logo"/>
+                            <span>Continue with Google</span>
                         </button>
                     </div>
-                    <hr style={{borderColor: 'var(--border)', margin: '20px 0'}}/>
-                    <div style={{textAlign: 'center'}}>
-                        <h5 style={{marginBottom: '8px', color: 'var(--text)'}}>Don't have an account?</h5>
+                    <hr className="border w-full max-w-1/2 border-gray-300"/>
+                    <div className="my-4">
+                        <h5 className="inline px-4">Don't have an account?</h5>
                         <Link
                             to="/register"
-                            style={{
-                                textDecoration: 'none',
-                                color: 'var(--accent)'
-                            }}
+                            className="inline-flex text-accent-mid-green hover:text-accent-light-green hover:scale-105 hover:cursor-pointer transition-all duration-300"
                         >
                             <strong>Register an account</strong>
                         </Link>
+                    </div>
+                </div>
+                <div className="w-full max-w-md bg-accent-dark-green ">
+
+                    <div
+                        className="flex flex-col items-center justify-center h-full"
+                    >
+                        <NavLink
+                            to="https://www.biblegateway.com/passage/?search=Matthew%2028&version=ESV"
+                        >
+                            <blockquote
+                                className="text-left text-white text-lg font-serif italic p-12">
+
+                                “Go therefore and make disciples of all nations, baptizing them in the name of the
+                                Father and of the Son and of the Holy Spirit, teaching them to observe all that I have
+                                commanded
+                                you.
+                                <br/>
+                                <br/>
+
+                                And behold, I am with you always, to the end of the age.”
+                                <br/>
+                                <br/>
+                                <strong className="text-accent-light-green">- Matthew 28:19-20 (ESV)</strong>
+                            </blockquote>
+                        </NavLink>
                     </div>
                 </div>
             </div>

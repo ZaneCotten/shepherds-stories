@@ -15,7 +15,7 @@ export const PublicHeader = () => {
                             <li>
                                 <NavLink
                                     to="/home"
-                                    className="inline-block hover:scale-105 hover:text-accent-light-green duration-300"
+                                    className=" inline-block hover:scale-105 hover:text-accent-light-green duration-300"
                                     style={({isActive}) => ({
                                         textDecoration: isActive ? 'underline' : 'none'
                                     })}
