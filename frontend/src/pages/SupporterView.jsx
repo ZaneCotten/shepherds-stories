@@ -269,7 +269,7 @@ export const SupporterView = () => {
 
                     {missionaries.length > 0 && (
                         <div className="w-full max-w-4xl mb-8">
-                            <div className="flex flex-wrap justify-center gap-2 p-1 bg-gray-100 rounded-xl">
+                            <div className="flex flex-wrap justify-center gap-2 p-1 bg-gray-100 rounded-xl mb-4">
                                 <button
                                     onClick={() => setSelectedMissionary("")}
                                     className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${!selectedMissionary ? 'bg-white text-accent-dark-green shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
@@ -301,6 +301,45 @@ export const SupporterView = () => {
                                     </button>
                                 ))}
                             </div>
+
+                            {selectedMissionary && missionaries.find(m => m.id === selectedMissionary) && (
+                                <div
+                                    className="bg-white p-6 rounded-2xl border border-accent-mid-green/20 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+                                    <div className="flex items-start gap-4">
+                                        <div
+                                            className="w-16 h-16 rounded-full overflow-hidden border-2 border-accent-mid-green/30 flex-shrink-0">
+                                            {missionaries.find(m => m.id === selectedMissionary).profilePictureUrl ? (
+                                                <img
+                                                    src={missionaries.find(m => m.id === selectedMissionary).profilePictureUrl}
+                                                    alt="Profile" className="w-full h-full object-cover"/>
+                                            ) : (
+                                                <div
+                                                    className="w-full h-full bg-gray-50 flex items-center justify-center">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                         viewBox="0 0 24 24" fill="none" stroke="#2D5A27"
+                                                         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                                        <circle cx="12" cy="7" r="4"></circle>
+                                                    </svg>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="text-xl font-bold text-accent-dark-green mb-1">
+                                                {missionaries.find(m => m.id === selectedMissionary).missionaryName}
+                                            </h3>
+                                            <p className="text-accent-mid-green text-sm font-medium mb-2 flex items-center gap-1">
+                                                <span>📍 {missionaries.find(m => m.id === selectedMissionary).locationRegion || "Global"}</span>
+                                            </p>
+                                            {missionaries.find(m => m.id === selectedMissionary).biography && (
+                                                <p className="text-gray-600 text-sm leading-relaxed italic">
+                                                    "{missionaries.find(m => m.id === selectedMissionary).biography}"
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 

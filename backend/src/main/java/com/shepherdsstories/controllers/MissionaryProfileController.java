@@ -12,6 +12,7 @@ import com.shepherdsstories.data.repositories.PostRepository;
 import com.shepherdsstories.data.repositories.CommentRepository;
 import com.shepherdsstories.data.repositories.PostLikeRepository;
 import com.shepherdsstories.data.repositories.CommentLikeRepository;
+import com.shepherdsstories.dtos.BannedSupporterDTO;
 import com.shepherdsstories.dtos.MissionaryProfileDTO;
 import com.shepherdsstories.dtos.PrayerRequestDTO;
 import com.shepherdsstories.dtos.SupporterProfileDTO;
@@ -63,6 +64,8 @@ public class MissionaryProfileController {
     private static final Logger logger = LoggerFactory.getLogger(MissionaryProfileController.class);
     private static final String MISSIONARY_PROFILE_NOT_FOUND = "Missionary profile not found";
     private static final String MESSAGE_KEY = "message";
+
+    private static final String CONNECTION_NOT_FOUND = "Connection not found";
 
     private final MissionaryProfileRepository missionaryProfileRepository;
     private final UserRepository userRepository;
@@ -172,7 +175,7 @@ public class MissionaryProfileController {
     public ResponseEntity<Map<String, String>> removeSupporter(@PathVariable java.util.UUID supporterId) {
         User user = getCurrentUser();
         ConnectionRequest connection = connectionRepository.findByMissionaryIdAndSupporterId(user.getId(), supporterId)
-                .orElseThrow(() -> new ResourceNotFoundException("Connection not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(CONNECTION_NOT_FOUND));
 
         if (connection.getStatus() != RequestStatus.APPROVED) {
             return ResponseEntity.badRequest().body(Map.of(MESSAGE_KEY, "Supporter is not currently connected."));
@@ -190,13 +193,53 @@ public class MissionaryProfileController {
     public ResponseEntity<Map<String, String>> banSupporter(@PathVariable java.util.UUID supporterId) {
         User user = getCurrentUser();
         ConnectionRequest connection = connectionRepository.findByMissionaryIdAndSupporterId(user.getId(), supporterId)
-                .orElseThrow(() -> new ResourceNotFoundException("Connection not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(CONNECTION_NOT_FOUND));
 
         connection.setStatus(RequestStatus.BANNED);
         connection.setProcessedAt(OffsetDateTime.now());
         connectionRepository.save(connection);
 
         return ResponseEntity.ok(Map.of(MESSAGE_KEY, "Supporter banned"));
+    }
+
+    @GetMapping("/banned-supporters")
+    @Transactional(readOnly = true)
+    public ResponseEntity<List<BannedSupporterDTO>> getBannedSupporters() {
+        User user = getCurrentUser();
+        List<ConnectionRequest> connections = connectionRepository.findByMissionaryIdAndStatus(user.getId(), RequestStatus.BANNED);
+
+        List<BannedSupporterDTO> bannedSupporters = connections.stream()
+                .map(req -> {
+                    var s = req.getSupporter();
+                    return BannedSupporterDTO.builder()
+                            .id(s.getId())
+                            .firstName(s.getFirstName())
+                            .lastName(s.getLastName())
+                            .profilePictureUrl(s3Service.generatePresignedUrl(s.getUser().getProfilePictureKey()))
+                            .bannedAt(req.getProcessedAt())
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(bannedSupporters);
+    }
+
+    @PostMapping("/supporters/{supporterId}/unban")
+    @Transactional
+    public ResponseEntity<Map<String, String>> unbanSupporter(@PathVariable java.util.UUID supporterId) {
+        User user = getCurrentUser();
+        ConnectionRequest connection = connectionRepository.findByMissionaryIdAndSupporterId(user.getId(), supporterId)
+                .orElseThrow(() -> new ResourceNotFoundException(CONNECTION_NOT_FOUND));
+
+        if (connection.getStatus() != RequestStatus.BANNED) {
+            return ResponseEntity.badRequest().body(Map.of(MESSAGE_KEY, "Supporter is not banned."));
+        }
+
+        connection.setStatus(RequestStatus.REJECTED);
+        connection.setProcessedAt(OffsetDateTime.now().minusMinutes(2)); // Allow immediate re-request
+        connectionRepository.save(connection);
+
+        return ResponseEntity.ok(Map.of(MESSAGE_KEY, "Supporter unbanned"));
     }
 
     private User getCurrentUser() {
@@ -272,6 +315,14 @@ public class MissionaryProfileController {
 
             if (updateDto.getMissionaryName() != null && !updateDto.getMissionaryName().isBlank()) {
                 profile.setMissionaryName(updateDto.getMissionaryName());
+            }
+
+            if (updateDto.getLocationRegion() != null) {
+                profile.setLocationRegion(updateDto.getLocationRegion());
+            }
+
+            if (updateDto.getBiography() != null) {
+                profile.setBiography(updateDto.getBiography());
             }
 
             if (updateDto.getProfilePictureUrl() != null) {

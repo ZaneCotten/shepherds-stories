@@ -2,6 +2,7 @@ import React, {useState, useEffect} from 'react';
 import PostFeed from "./PostFeed.jsx";
 import ConnectionRequests from "./ConnectionRequests.jsx";
 import SupporterList from "./SupporterList.jsx";
+import BannedUsers from "./BannedUsers.jsx";
 
 const ExportManager = () => {
     const [dateRange, setDateRange] = useState({
@@ -69,31 +70,31 @@ const ExportManager = () => {
     };
 
     return (
-        <div
-            className="w-full max-w-2xl bg-white p-8 rounded-2xl border border-accent-mid-green shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-2xl font-bold text-accent-dark-green mb-6">Export Data</h2>
-            <p className="text-gray-600 mb-8">Select data types and an optional date range to export your ministry data
-                as a CSV
-                file.</p>
+        <div className="mt-8">
+            <hr className="border-gray-100 mb-8"/>
+            <h3 className="text-lg font-bold text-accent-dark-green mb-4">Export Data</h3>
+            <p className="text-gray-600 mb-8 text-sm">Select data types and an optional date range to export your
+                ministry data as a CSV file.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <div className="flex flex-col gap-2">
-                    <label className="text-sm font-bold text-accent-dark-green uppercase tracking-wide">Start
+                    <label className="text-xs font-black text-accent-mid-green uppercase tracking-widest mb-1 block">Start
                         Date</label>
                     <input
                         type="date"
                         value={dateRange.start}
                         onChange={(e) => setDateRange(prev => ({...prev, start: e.target.value}))}
-                        className="w-full p-3 border-2 rounded-xl border-gray-100 hover:border-accent-mid-green focus:border-accent-mid-green transition-colors bg-gray-50/30 outline-none text-gray-700"
+                        className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-mid-green/20 focus:border-accent-mid-green transition-all"
                     />
                 </div>
                 <div className="flex flex-col gap-2">
-                    <label className="text-sm font-bold text-accent-dark-green uppercase tracking-wide">End Date</label>
+                    <label className="text-xs font-black text-accent-mid-green uppercase tracking-widest mb-1 block">End
+                        Date</label>
                     <input
                         type="date"
                         value={dateRange.end}
                         onChange={(e) => setDateRange(prev => ({...prev, end: e.target.value}))}
-                        className="w-full p-3 border-2 rounded-xl border-gray-100 hover:border-accent-mid-green focus:border-accent-mid-green transition-colors bg-gray-50/30 outline-none text-gray-700"
+                        className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-mid-green/20 focus:border-accent-mid-green transition-all"
                     />
                 </div>
             </div>
@@ -103,11 +104,11 @@ const ExportManager = () => {
                     <label key={opt} className="flex items-center gap-3 cursor-pointer group">
                         <div
                             onClick={() => toggleOption(opt)}
-                            className={`w-6 h-6 rounded-md border-2 transition-all flex items-center justify-center ${options[opt] ? 'bg-accent-mid-green border-accent-mid-green' : 'border-gray-200 group-hover:border-accent-mid-green'}`}
+                            className={`w-5 h-5 rounded border transition-all flex items-center justify-center ${options[opt] ? 'bg-accent-mid-green border-accent-mid-green' : 'border-gray-200 group-hover:border-accent-mid-green'}`}
                         >
-                            {options[opt] && <span className="text-white text-xs">✓</span>}
+                            {options[opt] && <span className="text-white text-[10px]">✓</span>}
                         </div>
-                        <span className="text-sm text-gray-700">
+                        <span className="text-sm text-gray-600">
                             {labelMap[opt] || opt.replace(/([A-Z])/g, ' $1').toLowerCase()}
                         </span>
                     </label>
@@ -118,8 +119,14 @@ const ExportManager = () => {
 
             <button
                 onClick={handleExport}
-                className="w-full py-4 bg-accent-mid-green text-white rounded-xl font-bold hover:bg-accent-dark-green transition-colors shadow-md"
+                className="w-full py-3 bg-white border-2 border-accent-mid-green text-accent-mid-green rounded-xl font-bold hover:bg-accent-light-green transition-all shadow-sm flex items-center justify-center gap-2"
             >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
                 Download CSV Export
             </button>
         </div>
@@ -134,8 +141,14 @@ export const MissionaryDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [isUploading, setIsUploading] = useState(false);
     const [settingsError, setSettingsError] = useState("");
+    const [settingsSuccess, setSettingsSuccess] = useState("");
     const [showConfirmNewCode, setShowConfirmNewCode] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [editProfile, setEditProfile] = useState({
+        missionaryName: "",
+        locationRegion: "",
+        biography: ""
+    });
 
     const handleCopy = () => {
         if (profile?.referenceNumber) {
@@ -166,7 +179,15 @@ export const MissionaryDashboard = () => {
                     fetch("/api/posts")
                 ]);
 
-                if (profRes.ok) setProfile(await profRes.json());
+                if (profRes.ok) {
+                    const data = await profRes.json();
+                    setProfile(data);
+                    setEditProfile({
+                        missionaryName: data.missionaryName || "",
+                        locationRegion: data.locationRegion || "",
+                        biography: data.biography || ""
+                    });
+                }
                 if (reqRes.ok) setRequests(await reqRes.json());
                 if (postRes.ok) setPosts(await postRes.json());
             } catch (err) {
@@ -177,6 +198,29 @@ export const MissionaryDashboard = () => {
         };
         fetchData();
     }, []);
+
+    const handleUpdateProfile = async (e) => {
+        e.preventDefault();
+        setSettingsError("");
+        setSettingsSuccess("");
+        try {
+            const res = await fetch("/api/missionary/profile", {
+                method: "PUT",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(editProfile)
+            });
+            if (res.ok) {
+                const updated = await res.json();
+                setProfile(updated);
+                setSettingsSuccess("Profile updated successfully!");
+                setTimeout(() => setSettingsSuccess(""), 3000);
+            } else {
+                setSettingsError("Failed to update profile.");
+            }
+        } catch (err) {
+            setSettingsError("Error updating profile: " + err.message);
+        }
+    };
 
     const handleLogout = async () => {
         await fetch("/api/auth/logout", {method: 'POST'});
@@ -286,12 +330,20 @@ export const MissionaryDashboard = () => {
                         </div>
                         <div>
                             <h1 className="text-3xl font-bold text-accent-dark-green">{profile?.missionaryName || "Missionary Dashboard"}</h1>
-                            <p className="text-accent-mid-green font-medium flex items-center gap-2">
-                                <span>📍 {profile?.locationRegion || "Global"}</span>
-                                <span className="text-gray-300">•</span>
-                                <span
-                                    className="uppercase text-[10px] font-bold tracking-widest bg-accent-mid-green/10 px-2 py-0.5 rounded">Missionary</span>
-                            </p>
+                            <div className="flex flex-col gap-1">
+                                <p className="text-accent-mid-green font-medium flex items-center gap-2">
+                                    <span>📍 {profile?.locationRegion || "Global"}</span>
+                                    <span className="text-gray-300">•</span>
+                                    <span
+                                        className="uppercase text-[10px] font-bold tracking-widest bg-accent-mid-green/10 px-2 py-0.5 rounded">Missionary</span>
+                                </p>
+                                {profile?.biography && (
+                                    <p className="text-sm text-gray-600 max-w-xl italic line-clamp-2"
+                                       title={profile.biography}>
+                                        {profile.biography}
+                                    </p>
+                                )}
+                            </div>
                         </div>
                     </div>
                     <button onClick={handleLogout}
@@ -338,18 +390,7 @@ export const MissionaryDashboard = () => {
                             )
                         },
                         {
-                            id: 'export', label: 'Export Data', icon: (
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                                     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-                                     strokeLinejoin="round">
-                                    <line x1="18" y1="20" x2="18" y2="10"></line>
-                                    <line x1="12" y1="20" x2="12" y2="4"></line>
-                                    <line x1="6" y1="20" x2="6" y2="14"></line>
-                                </svg>
-                            )
-                        },
-                        {
-                            id: 'settings', label: 'Invite Settings', icon: (
+                            id: 'settings', label: 'Settings', icon: (
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                                      fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
                                      strokeLinejoin="round">
@@ -376,14 +417,75 @@ export const MissionaryDashboard = () => {
                     {activeTab === 'feed' && <PostFeed posts={posts} setPosts={setPosts}/>}
                     {activeTab === 'requests' && <ConnectionRequests requests={requests} setRequests={setRequests}/>}
                     {activeTab === 'supporters' && <SupporterList/>}
-                    {activeTab === 'export' && <ExportManager/>}
 
                     {activeTab === 'settings' && (
                         <div
                             className="w-full max-w-2xl bg-white p-8 rounded-2xl border border-accent-mid-green shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <h2 className="text-2xl font-bold text-accent-dark-green mb-8">Connection Settings</h2>
+                            <h2 className="text-2xl font-bold text-accent-dark-green mb-8">Settings</h2>
 
                             {settingsError && <p className="text-red-500 text-sm mb-6 font-bold">{settingsError}</p>}
+                            {settingsSuccess &&
+                                <p className="text-accent-mid-green text-sm mb-6 font-bold">{settingsSuccess}</p>}
+
+                            <div className="mb-12">
+                                <h3 className="text-lg font-bold text-accent-dark-green mb-4">Profile Information</h3>
+                                <form onSubmit={handleUpdateProfile} className="space-y-4">
+                                    <div>
+                                        <label
+                                            className="text-xs font-black text-accent-mid-green uppercase tracking-widest mb-1 block">Display
+                                            Name</label>
+                                        <input
+                                            type="text"
+                                            value={editProfile.missionaryName}
+                                            onChange={(e) => setEditProfile({
+                                                ...editProfile,
+                                                missionaryName: e.target.value
+                                            })}
+                                            className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-mid-green/20 focus:border-accent-mid-green transition-all"
+                                            placeholder="Your name or ministry name"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label
+                                            className="text-xs font-black text-accent-mid-green uppercase tracking-widest mb-1 block">Region
+                                            / Location</label>
+                                        <input
+                                            type="text"
+                                            value={editProfile.locationRegion}
+                                            onChange={(e) => setEditProfile({
+                                                ...editProfile,
+                                                locationRegion: e.target.value
+                                            })}
+                                            className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-mid-green/20 focus:border-accent-mid-green transition-all"
+                                            placeholder="e.g. Southeast Asia, Nairobi, etc."
+                                        />
+                                    </div>
+                                    <div>
+                                        <label
+                                            className="text-xs font-black text-accent-mid-green uppercase tracking-widest mb-1 block">Biography</label>
+                                        <textarea
+                                            value={editProfile.biography}
+                                            onChange={(e) => setEditProfile({
+                                                ...editProfile,
+                                                biography: e.target.value
+                                            })}
+                                            rows="4"
+                                            className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-mid-green/20 focus:border-accent-mid-green transition-all resize-none"
+                                            placeholder="Tell your supporters about your ministry..."
+                                        />
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        className="w-full py-3 bg-accent-mid-green text-white rounded-xl font-bold hover:bg-accent-dark-green transition-colors shadow-md"
+                                    >
+                                        Save Profile Changes
+                                    </button>
+                                </form>
+                            </div>
+
+                            <hr className="border-gray-100 mb-8"/>
+
+                            <h3 className="text-lg font-bold text-accent-dark-green mb-4">Connection Settings</h3>
 
                             <div
                                 className="p-6 bg-accent-light-green/30 rounded-2xl border border-accent-mid-green/20 mb-8">
@@ -479,6 +581,15 @@ export const MissionaryDashboard = () => {
                                     {profile?.isReferenceDisabled ? "Enable Code" : "Disable Code"}
                                 </button>
                             </div>
+
+                            <hr className="border-gray-100 mb-8"/>
+
+                            <h3 className="text-lg font-bold text-accent-dark-green mb-4">Banned Users</h3>
+                            <p className="text-gray-600 mb-6 text-sm">Review users you have banned from connecting with
+                                you. You can unban them to allow them to request a connection again.</p>
+                            <BannedUsers/>
+
+                            <ExportManager/>
                         </div>
                     )}
                 </div>

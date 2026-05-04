@@ -2,6 +2,7 @@ package com.shepherdsstories.controllers;
 
 import com.shepherdsstories.data.enums.RequestStatus;
 import com.shepherdsstories.data.enums.Role;
+import com.shepherdsstories.data.repositories.MediaRepository;
 import com.shepherdsstories.data.repositories.MissionaryProfileRepository;
 import com.shepherdsstories.data.repositories.PostLikeRepository;
 import com.shepherdsstories.data.repositories.PostRepository;
@@ -13,6 +14,7 @@ import com.shepherdsstories.entities.Post;
 import com.shepherdsstories.entities.PostLike;
 import com.shepherdsstories.entities.SupporterProfile;
 import com.shepherdsstories.entities.User;
+import com.shepherdsstories.services.S3Service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,6 +51,12 @@ class PostControllerTest {
 
     @Mock
     private PostLikeRepository postLikeRepository;
+
+    @Mock
+    private MediaRepository mediaRepository;
+
+    @Mock
+    private S3Service s3Service;
 
     @InjectMocks
     private PostController controller;

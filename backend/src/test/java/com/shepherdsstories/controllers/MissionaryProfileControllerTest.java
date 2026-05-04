@@ -359,6 +359,79 @@ class MissionaryProfileControllerTest {
         verify(prayerRequestRepository).countByMissionaryIdAndAnsweredTrueAndCreatedAtBetween(eq(userId), any(), any());
     }
 
+    @Test
+    void banAndUnbanSupporter_Success() {
+        UUID missionaryId = UUID.randomUUID();
+        UUID supporterId = UUID.randomUUID();
+        String email = "missionary@example.com";
+        setupAuth(email);
+
+        User missionary = new User();
+        missionary.setId(missionaryId);
+        missionary.setEmail(email);
+
+        User supporterUser = new User();
+        supporterUser.setId(supporterId);
+
+        SupporterProfile supporterProfile = new SupporterProfile();
+        supporterProfile.setId(supporterId);
+        supporterProfile.setUser(supporterUser);
+        supporterProfile.setFirstName("John");
+        supporterProfile.setLastName("Doe");
+
+        ConnectionRequest connection = new ConnectionRequest();
+        connection.setMissionary(new MissionaryProfile());
+        connection.getMissionary().setId(missionaryId);
+        connection.setSupporter(supporterProfile);
+        connection.setStatus(RequestStatus.APPROVED);
+
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(missionary));
+        when(connectionRepository.findByMissionaryIdAndSupporterId(missionaryId, supporterId)).thenReturn(Optional.of(connection));
+        when(connectionRepository.findByMissionaryIdAndStatus(missionaryId, RequestStatus.BANNED)).thenReturn(List.of(connection));
+
+        // Ban
+        ResponseEntity<Map<String, String>> banResponse = controller.banSupporter(supporterId);
+        assertEquals(HttpStatus.OK, banResponse.getStatusCode());
+        assertEquals("Supporter banned", banResponse.getBody().get("message"));
+        assertEquals(RequestStatus.BANNED, connection.getStatus());
+
+        // Get Banned
+        ResponseEntity<List<com.shepherdsstories.dtos.BannedSupporterDTO>> bannedListResponse = controller.getBannedSupporters();
+        assertEquals(HttpStatus.OK, bannedListResponse.getStatusCode());
+        assertEquals(1, bannedListResponse.getBody().size());
+        assertEquals("John", bannedListResponse.getBody().get(0).getFirstName());
+
+        // Unban
+        ResponseEntity<Map<String, String>> unbanResponse = controller.unbanSupporter(supporterId);
+        assertEquals(HttpStatus.OK, unbanResponse.getStatusCode());
+        assertEquals("Supporter unbanned", unbanResponse.getBody().get("message"));
+        assertEquals(RequestStatus.REJECTED, connection.getStatus());
+    }
+
+    @Test
+    void unbanSupporter_NotBanned_Error() {
+        UUID missionaryId = UUID.randomUUID();
+        UUID supporterId = UUID.randomUUID();
+        String email = "missionary@example.com";
+        setupAuth(email);
+
+        User missionary = new User();
+        missionary.setId(missionaryId);
+        missionary.setEmail(email);
+
+        ConnectionRequest connection = new ConnectionRequest();
+        connection.setMissionary(new MissionaryProfile());
+        connection.getMissionary().setId(missionaryId);
+        connection.setStatus(RequestStatus.APPROVED);
+
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(missionary));
+        when(connectionRepository.findByMissionaryIdAndSupporterId(missionaryId, supporterId)).thenReturn(Optional.of(connection));
+
+        ResponseEntity<Map<String, String>> response = controller.unbanSupporter(supporterId);
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Supporter is not banned.", response.getBody().get("message"));
+    }
+
     private void setupAuth(String email) {
         Authentication auth = mock(Authentication.class);
         when(auth.isAuthenticated()).thenReturn(true);
