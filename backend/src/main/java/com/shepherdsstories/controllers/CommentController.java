@@ -8,6 +8,7 @@ import com.shepherdsstories.dtos.CommentDTO;
 import com.shepherdsstories.entities.*;
 import com.shepherdsstories.exceptions.ResourceNotFoundException;
 import com.shepherdsstories.exceptions.UnauthenticatedException;
+import com.shepherdsstories.services.S3Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -35,6 +36,9 @@ public class CommentController {
     private final SupporterProfileRepository supporterProfileRepository;
     private final ConnectionRepository connectionRepository;
     private final CommentLikeRepository commentLikeRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private S3Service s3Service;
 
     public CommentController(CommentRepository commentRepository,
                              PostRepository postRepository,
@@ -299,6 +303,7 @@ public class CommentController {
                 .postId(comment.getPost().getId())
                 .userId(comment.getUser().getId())
                 .userName(getUserName(comment.getUser()))
+                .userProfilePictureUrl(s3Service.generatePresignedUrl(comment.getUser().getProfilePictureKey()))
                 .content(comment.getContent())
                 .parentCommentId(comment.getParentComment() != null ? comment.getParentComment().getId() : null)
                 .createdAt(comment.getCreatedAt())

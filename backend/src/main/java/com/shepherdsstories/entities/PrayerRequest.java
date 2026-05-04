@@ -27,7 +27,7 @@ public class PrayerRequest {
     private String content;
 
     @Column(name = "is_answered")
-    private boolean isAnswered = false;
+    private boolean answered = false;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();

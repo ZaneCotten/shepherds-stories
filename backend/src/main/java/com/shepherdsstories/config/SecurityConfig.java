@@ -6,13 +6,18 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.DelegatingSecurityContextRepository;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
@@ -26,7 +31,10 @@ import java.util.Optional;
 import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
+@EnableWebSecurity
 public class SecurityConfig {
+    private static final String APPLICATION_JSON = "application/json";
+
     private static String successBody(Authentication authentication) {
         String username = authentication.getName();
         String id = "";
@@ -83,8 +91,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public org.springframework.security.web.authentication.AuthenticationSuccessHandler oauth2SuccessHandler(UserRepository userRepository) {
-        return (_, response, authentication) -> {
+    public AuthenticationSuccessHandler oauth2SuccessHandler(UserRepository userRepository, SecurityContextRepository securityContextRepository) {
+        return (request, response, authentication) -> {
             OAuth2AuthenticationToken authToken = (OAuth2AuthenticationToken) authentication;
             String provider = authToken.getAuthorizedClientRegistrationId().toUpperCase();
             String email = firstNonBlank(
@@ -120,25 +128,29 @@ public class SecurityConfig {
                 String role = user.getRole().name();
                 String url = String.format("http://localhost:5173/oauth/callback?username=%s&role=%s&id=%s",
                         encode(normalizedEmail), encode(role), encode(user.getId().toString()));
+                SecurityContext context = SecurityContextHolder.getContext();
+                securityContextRepository.saveContext(context, request, response);
                 response.sendRedirect(url);
             }
         };
     }
 
     @Bean
-    public org.springframework.security.web.authentication.AuthenticationSuccessHandler formLoginSuccessHandler() {
-        return (_, response, authentication) -> {
+    public AuthenticationSuccessHandler formLoginSuccessHandler(SecurityContextRepository securityContextRepository) {
+        return (request, response, authentication) -> {
+            SecurityContext context = SecurityContextHolder.getContext();
+            securityContextRepository.saveContext(context, request, response);
             response.setStatus(HttpServletResponse.SC_OK);
-            response.setContentType("application/json");
+            response.setContentType(APPLICATION_JSON);
             response.getWriter().write(successBody(authentication));
         };
     }
 
     @Bean
-    public org.springframework.security.web.authentication.AuthenticationFailureHandler formLoginFailureHandler() {
+    public AuthenticationFailureHandler formLoginFailureHandler() {
         return (_, response, _) -> {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
+            response.setContentType(APPLICATION_JSON);
             response.getWriter().write("{\"error\":\"Invalid email or password\"}");
         };
     }
@@ -152,7 +164,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, CustomOAuth2UserService customOAuth2UserService, CustomOidcUserService customOidcUserService, org.springframework.security.web.authentication.AuthenticationSuccessHandler oauth2SuccessHandler, org.springframework.security.web.authentication.AuthenticationSuccessHandler formLoginSuccessHandler, org.springframework.security.web.authentication.AuthenticationFailureHandler formLoginFailureHandler, SecurityContextRepository securityContextRepository) {
+    public SecurityFilterChain filterChain(HttpSecurity http, CustomOAuth2UserService customOAuth2UserService, CustomOidcUserService customOidcUserService, AuthenticationSuccessHandler oauth2SuccessHandler, AuthenticationSuccessHandler formLoginSuccessHandler, AuthenticationFailureHandler formLoginFailureHandler, SecurityContextRepository securityContextRepository) {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(withDefaults())
@@ -163,6 +175,16 @@ public class SecurityConfig {
                     auth.requestMatchers("/api/supporter/**").hasAnyAuthority("SUPPORTER", "MISSIONARY");
                     auth.anyRequest().authenticated();
                 })
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            if (request.getRequestURI().startsWith("/api/")) {
+                                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                response.setContentType(APPLICATION_JSON);
+                                response.getWriter().write("{\"error\":\"Unauthorized access\"}");
+                            } else {
+                                response.sendRedirect("/login");
+                            }
+                        }))
                 .formLogin(form -> form
                         .loginProcessingUrl("/api/auth/login")
                         .usernameParameter("email")

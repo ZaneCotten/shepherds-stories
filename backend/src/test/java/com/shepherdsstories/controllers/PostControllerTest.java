@@ -138,9 +138,9 @@ class PostControllerTest {
         post.setAuthor(missionaryProfile);
         post.setCreatedAt(OffsetDateTime.now());
 
-        when(postRepository.findAllForSupporter(supporterUser.getId(), RequestStatus.APPROVED)).thenReturn(List.of(post));
+        when(postRepository.findAllForSupporter(supporterUser.getId(), RequestStatus.APPROVED, null)).thenReturn(List.of(post));
 
-        ResponseEntity<List<PostDTO>> response = controller.getFeed(supporterAuth);
+        ResponseEntity<List<PostDTO>> response = controller.getFeed(null, supporterAuth);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(1, response.getBody().size());
@@ -239,7 +239,7 @@ class PostControllerTest {
         PostLike like2 = new PostLike();
         like2.setUser(supporter2);
 
-        when(postRepository.findAllForSupporter(supporter1.getId(), RequestStatus.APPROVED)).thenReturn(List.of(post));
+        when(postRepository.findAllForSupporter(supporter1.getId(), RequestStatus.APPROVED, null)).thenReturn(List.of(post));
         when(postLikeRepository.countByPostId(post.getId())).thenReturn(2L);
         when(postLikeRepository.existsByPostIdAndUserId(post.getId(), supporter1.getId())).thenReturn(true);
 
@@ -247,7 +247,7 @@ class PostControllerTest {
         like1.setUser(supporter1);
         when(postLikeRepository.findLatestLikes(eq(post.getId()), any())).thenReturn(List.of(like1, like2));
 
-        ResponseEntity<List<PostDTO>> response = controller.getFeed(auth1);
+        ResponseEntity<List<PostDTO>> response = controller.getFeed(null, auth1);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(1, response.getBody().size());
@@ -288,7 +288,7 @@ class PostControllerTest {
         PostLike like2 = new PostLike();
         like2.setUser(supporter2);
 
-        when(postRepository.findAllForSupporter(supporter1.getId(), RequestStatus.APPROVED)).thenReturn(List.of(post));
+        when(postRepository.findAllForSupporter(supporter1.getId(), RequestStatus.APPROVED, null)).thenReturn(List.of(post));
         when(postLikeRepository.countByPostId(post.getId())).thenReturn(2L);
         when(postLikeRepository.existsByPostIdAndUserId(post.getId(), supporter1.getId())).thenReturn(true);
 
@@ -296,7 +296,7 @@ class PostControllerTest {
         when(postLikeRepository.findLatestLikes(eq(post.getId()), any())).thenReturn(List.of(like2, like1));
         when(supporterProfileRepository.findById(supporter2.getId())).thenReturn(Optional.of(profile2));
 
-        ResponseEntity<List<PostDTO>> response = controller.getFeed(auth1);
+        ResponseEntity<List<PostDTO>> response = controller.getFeed(null, auth1);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         PostDTO dto = response.getBody().getFirst();

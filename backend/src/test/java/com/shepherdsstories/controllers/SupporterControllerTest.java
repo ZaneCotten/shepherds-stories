@@ -2,6 +2,7 @@ package com.shepherdsstories.controllers;
 
 import com.shepherdsstories.data.enums.RequestStatus;
 import com.shepherdsstories.data.repositories.*;
+import com.shepherdsstories.services.S3Service;
 import com.shepherdsstories.entities.*;
 import com.shepherdsstories.factories.UserFactory;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.OffsetDateTime;
 import java.util.Map;
@@ -44,11 +46,19 @@ class SupporterControllerTest {
     @Mock
     private UserFactory userFactory;
 
+    @Mock
+    private PrayerRequestRepository prayerRequestRepository;
+
+    @Mock
+    private S3Service s3Service;
+
+    @org.mockito.InjectMocks
     private SupporterController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new SupporterController(missionaryProfileRepository, inviteCodeRepository, supporterProfileRepository, connectionRepository, userRepository, userFactory);
+        // Mockito handles constructor injection, but we need to manually set field-injected dependencies
+        ReflectionTestUtils.setField(controller, "s3Service", s3Service);
     }
 
     private User createMockUser(String email, UUID id) {

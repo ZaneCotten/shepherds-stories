@@ -16,7 +16,20 @@ public interface ConnectionRepository extends JpaRepository<ConnectionRequest, U
     @Query("SELECT cr FROM ConnectionRequest cr JOIN FETCH cr.supporter WHERE cr.missionary.id = :missionaryId AND cr.status = :status")
     List<ConnectionRequest> findByMissionaryIdAndStatus(@Param("missionaryId") UUID missionaryId, @Param("status") RequestStatus status);
 
+    @Query("SELECT cr FROM ConnectionRequest cr JOIN FETCH cr.missionary m WHERE cr.supporter.id = :supporterId AND cr.status = :status")
+    List<ConnectionRequest> findBySupporterIdAndStatus(@Param("supporterId") UUID supporterId, @Param("status") RequestStatus status);
+
     Optional<ConnectionRequest> findByMissionaryIdAndSupporterId(UUID missionaryId, UUID supporterId);
 
     boolean existsByMissionaryIdAndSupporterIdAndStatus(UUID missionaryId, UUID supporterId, RequestStatus status);
+
+    @Query("SELECT cr FROM ConnectionRequest cr JOIN FETCH cr.supporter WHERE cr.missionary.id = :missionaryId AND cr.status = :status AND cr.createdAt BETWEEN :start AND :end ORDER BY cr.createdAt DESC")
+    List<ConnectionRequest> findByMissionaryIdAndStatusAndCreatedAtBetween(@Param("missionaryId") UUID missionaryId, @Param("status") RequestStatus status, @Param("start") java.time.OffsetDateTime start, @Param("end") java.time.OffsetDateTime end);
+
+    @Query("SELECT cr FROM ConnectionRequest cr JOIN FETCH cr.supporter WHERE cr.missionary.id = :missionaryId AND cr.createdAt BETWEEN :start AND :end ORDER BY cr.createdAt DESC")
+    List<ConnectionRequest> findByMissionaryIdAndCreatedAtBetween(@Param("missionaryId") UUID missionaryId, @Param("start") java.time.OffsetDateTime start, @Param("end") java.time.OffsetDateTime end);
+
+    long countByMissionaryIdAndStatus(UUID missionaryId, RequestStatus status);
+
+    long countByMissionaryIdAndStatusAndCreatedAtBetween(UUID missionaryId, RequestStatus status, java.time.OffsetDateTime start, java.time.OffsetDateTime end);
 }

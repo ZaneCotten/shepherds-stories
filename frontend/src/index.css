@@ -3,16 +3,16 @@
 
 :root {
     --text: #222222;
-    --bg-deep: #fafafa;
-    --bg-card: #0f172a;
-    --bg-input: #111827;
-    --border: #1e293b;
-    --border-input: #334155;
-    --primary: #1d4ed8;
-    --primary-hover: #1e40af;
-    --accent: #93c5fd;
-    --code-bg: #1f2028;
-    --error: #f87171;
+    --bg-deep: #FAFAFA;
+    --bg-card: #FFFFFF;
+    --bg-input: #FFFFFF;
+    --border: #BFCFBB;
+    --border-input: #BFCFBB;
+    --primary: #8EA58C;
+    --primary-hover: #738A6E;
+    --accent: #738A6E;
+    --code-bg: #F3F4F6;
+    --error: #EF4444;
 
     --sans: system-ui, Roboto, Helvetica, Arial, sans-serif;
     --serif: ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
@@ -55,6 +55,13 @@
 
 }
 
+@layer base {
+    button, a, div, span {
+        --tw-duration: 300ms;
+        transition-duration: 300ms;
+    }
+}
+
 body {
     margin: 0;
     min-height: 100vh;
@@ -82,4 +89,21 @@ code {
     line-height: 135%;
     padding: 4px 8px;
     background: var(--code-bg);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #e5e7eb;
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #d1d5db;
 }

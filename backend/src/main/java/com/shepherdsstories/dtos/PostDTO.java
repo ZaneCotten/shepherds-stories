@@ -19,6 +19,7 @@ public class PostDTO {
     private String content;
     private UUID authorId;
     private String authorName;
+    private String authorProfilePictureUrl;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
     private Long likeCount;

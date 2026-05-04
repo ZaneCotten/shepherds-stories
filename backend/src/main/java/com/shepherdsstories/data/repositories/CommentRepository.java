@@ -13,5 +13,9 @@ public interface CommentRepository extends JpaRepository<Comment, UUID> {
 
     List<Comment> findAllByParentComment(Comment parentComment);
 
+    List<Comment> findAllByPostAuthorIdAndCreatedAtBetweenOrderByCreatedAtDesc(UUID authorId, java.time.OffsetDateTime start, java.time.OffsetDateTime end);
+
+    List<Comment> findAllByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(UUID userId, java.time.OffsetDateTime start, java.time.OffsetDateTime end);
+
     boolean existsByParentComment(Comment parentComment);
 }

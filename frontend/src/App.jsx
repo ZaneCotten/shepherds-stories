@@ -3,7 +3,7 @@ import {BrowserRouter as Router, Routes, Route, Navigate} from 'react-router-dom
 import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import HomePage from './pages/HomePage.jsx';
-import MissionaryView from "./pages/MissionaryView.jsx";
+import {MissionaryDashboard} from "./pages/MissionaryDashboard.jsx"; // Updated import
 import SupporterView from "./pages/SupporterView.jsx";
 import OAuthRoleSelectionPage from "./pages/OAuthRoleSelectionPage.jsx";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage.jsx";
@@ -40,7 +40,7 @@ function App() {
                 {/* Route Protection based on Role */}
                 <Route
                     path="/missionary/*"
-                    element={user?.role === 'MISSIONARY' ? <MissionaryView/> : <Navigate to="/login"/>}
+                    element={user?.role === 'MISSIONARY' ? <MissionaryDashboard/> : <Navigate to="/login"/>}
                 />
 
                 <Route

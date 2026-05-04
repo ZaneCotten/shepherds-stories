@@ -124,14 +124,14 @@ public class PostController {
 
     @GetMapping("/feed")
     @Transactional(readOnly = true)
-    public ResponseEntity<List<PostDTO>> getFeed(Authentication authentication) {
+    public ResponseEntity<List<PostDTO>> getFeed(@RequestParam(required = false) UUID missionaryId, Authentication authentication) {
         try {
             User user = getCurrentUser(authentication);
-            logger.info("Fetching feed for user: {} (ID: {}) with role: {}", user.getEmail(), user.getId(), user.getRole());
+            logger.info("Fetching feed for user: {} (ID: {}) with role: {}, missionaryId: {}", user.getEmail(), user.getId(), user.getRole(), missionaryId);
 
             // Supporter feed: posts from missionaries the user is connected to.
             // We assume any authenticated user can have a supporter feed if they have connections.
-            List<Post> posts = postRepository.findAllForSupporter(user.getId(), RequestStatus.APPROVED);
+            List<Post> posts = postRepository.findAllForSupporter(user.getId(), RequestStatus.APPROVED, missionaryId);
             logger.info("Found {} posts for user {}", posts.size(), user.getEmail());
 
             List<PostDTO> postDTOs = posts.stream().map(p -> convertToDTO(p, user)).collect(Collectors.toList());
@@ -363,6 +363,7 @@ public class PostController {
                 .content(post.getContent())
                 .authorId(post.getAuthor().getId())
                 .authorName(post.getAuthor().getMissionaryName())
+                .authorProfilePictureUrl(s3Service.generatePresignedUrl(post.getAuthor().getUser().getProfilePictureKey()))
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
                 .likeCount(likeCount)

@@ -3,17 +3,23 @@ package com.shepherdsstories.controllers;
 import com.shepherdsstories.config.UserAuthConfig;
 import com.shepherdsstories.data.enums.RequestStatus;
 import com.shepherdsstories.data.repositories.*;
+import com.shepherdsstories.dtos.MissionaryProfileDTO;
+import com.shepherdsstories.dtos.PrayerRequestDTO;
+import com.shepherdsstories.dtos.SupporterProfileDTO;
 import com.shepherdsstories.entities.*;
 import com.shepherdsstories.exceptions.ResourceNotFoundException;
 import com.shepherdsstories.factories.UserFactory;
+import com.shepherdsstories.services.S3Service;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/supporter")
@@ -25,19 +31,25 @@ public class SupporterController {
     private final InviteCodeRepository inviteCodeRepository;
     private final SupporterProfileRepository supporterProfileRepository;
     private final ConnectionRepository connectionRepository;
+    private final PrayerRequestRepository prayerRequestRepository;
     private final UserRepository userRepository;
     private final UserFactory userFactory;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private S3Service s3Service;
 
     public SupporterController(MissionaryProfileRepository missionaryProfileRepository,
                                InviteCodeRepository inviteCodeRepository,
                                SupporterProfileRepository supporterProfileRepository,
                                ConnectionRepository connectionRepository,
+                               PrayerRequestRepository prayerRequestRepository,
                                UserRepository userRepository,
                                UserFactory userFactory) {
         this.missionaryProfileRepository = missionaryProfileRepository;
         this.inviteCodeRepository = inviteCodeRepository;
         this.supporterProfileRepository = supporterProfileRepository;
         this.connectionRepository = connectionRepository;
+        this.prayerRequestRepository = prayerRequestRepository;
         this.userRepository = userRepository;
         this.userFactory = userFactory;
     }
@@ -109,6 +121,50 @@ public class SupporterController {
         return ResponseEntity.ok(Map.of(MESSAGE_KEY, "Request sent!"));
     }
 
+    @GetMapping("/missionaries")
+    @Transactional(readOnly = true)
+    public ResponseEntity<List<MissionaryProfileDTO>> getConnectedMissionaries(org.springframework.security.core.Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        User user = getCurrentUser(authentication);
+        List<ConnectionRequest> connections = connectionRepository.findBySupporterIdAndStatus(user.getId(), RequestStatus.APPROVED);
+
+        List<MissionaryProfileDTO> missionaryDTOs = connections.stream()
+                .map(ConnectionRequest::getMissionary)
+                .map(m -> MissionaryProfileDTO.builder()
+                        .id(m.getId())
+                        .missionaryName(m.getMissionaryName())
+                        .locationRegion(m.getLocationRegion())
+                        .biography(m.getBiography())
+                        .profilePictureUrl(s3Service.generatePresignedUrl(m.getUser().getProfilePictureKey()))
+                        .build())
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(missionaryDTOs);
+    }
+
+    @GetMapping("/profile")
+    @Transactional(readOnly = true)
+    public ResponseEntity<SupporterProfileDTO> getProfile(org.springframework.security.core.Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        User user = getCurrentUser(authentication);
+        SupporterProfile supporter = getOrCreateSupporterProfile(user);
+
+        SupporterProfileDTO dto = SupporterProfileDTO.builder()
+                .id(supporter.getId())
+                .firstName(supporter.getFirstName())
+                .lastName(supporter.getLastName())
+                .profilePictureUrl(s3Service.generatePresignedUrl(user.getProfilePictureKey()))
+                .build();
+
+        return ResponseEntity.ok(dto);
+    }
+
     private ResponseEntity<Map<String, String>> processExistingRequest(ConnectionRequest existingRequest) {
         RequestStatus status = existingRequest.getStatus();
         if (status == RequestStatus.APPROVED) {
@@ -117,6 +173,8 @@ public class SupporterController {
             return ResponseEntity.badRequest().body(Map.of(MESSAGE_KEY, "Request already pending"));
         } else if (status == RequestStatus.REJECTED) {
             return handleRejectedRequest(existingRequest);
+        } else if (status == RequestStatus.BANNED) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(MESSAGE_KEY, "You are banned from connecting with this missionary."));
         } else {
             return ResponseEntity.badRequest().body(Map.of(MESSAGE_KEY, "Cannot send request at this time."));
         }
@@ -169,5 +227,69 @@ public class SupporterController {
         return userRepository.findByEmailIgnoreCase(principalName)
                 .or(() -> userRepository.findByOauthId(principalName))
                 .orElseThrow(() -> new ResourceNotFoundException("User not found by principal: " + principalName));
+    }
+
+    @PostMapping("/profile/picture/upload-url")
+    public ResponseEntity<Map<String, String>> getUploadUrl(@RequestParam String contentType, org.springframework.security.core.Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        String s3Key = "profiles/" + user.getId() + "/" + java.util.UUID.randomUUID();
+        String uploadUrl = s3Service.generateUploadUrl(s3Key, contentType);
+        return ResponseEntity.ok(Map.of("uploadUrl", uploadUrl, "s3Key", s3Key));
+    }
+
+    @PutMapping("/profile")
+    @Transactional
+    public ResponseEntity<SupporterProfileDTO> updateProfile(@RequestBody SupporterProfileDTO updateDto, org.springframework.security.core.Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        SupporterProfile profile = supporterProfileRepository.findById(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Supporter profile not found"));
+
+        if (updateDto.getFirstName() != null && !updateDto.getFirstName().isBlank()) {
+            profile.setFirstName(updateDto.getFirstName());
+        }
+        if (updateDto.getLastName() != null && !updateDto.getLastName().isBlank()) {
+            profile.setLastName(updateDto.getLastName());
+        }
+
+        if (updateDto.getProfilePictureUrl() != null) {
+            user.setProfilePictureKey(updateDto.getProfilePictureUrl());
+            userRepository.save(user);
+        }
+
+        supporterProfileRepository.save(profile);
+
+        return ResponseEntity.ok(SupporterProfileDTO.builder()
+                .id(profile.getId())
+                .firstName(profile.getFirstName())
+                .lastName(profile.getLastName())
+                .profilePictureUrl(s3Service.generatePresignedUrl(user.getProfilePictureKey()))
+                .build());
+    }
+
+    @GetMapping("/prayer-requests")
+    @Transactional(readOnly = true)
+    public ResponseEntity<List<PrayerRequestDTO>> getPrayerRequests(org.springframework.security.core.Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        List<ConnectionRequest> connections = connectionRepository.findBySupporterIdAndStatus(user.getId(), RequestStatus.APPROVED);
+
+        List<java.util.UUID> missionaryIds = connections.stream()
+                .map(req -> req.getMissionary().getId())
+                .collect(Collectors.toList());
+
+        List<PrayerRequest> requests = prayerRequestRepository.findAllByMissionaryIdInAndAnsweredFalseOrderByCreatedAtDesc(missionaryIds);
+
+        return ResponseEntity.ok(requests.stream().map(this::toPrayerRequestDTO).collect(Collectors.toList()));
+    }
+
+    private PrayerRequestDTO toPrayerRequestDTO(PrayerRequest request) {
+        return PrayerRequestDTO.builder()
+                .id(request.getId())
+                .title(request.getTitle())
+                .content(request.getContent())
+                .answered(request.isAnswered())
+                .createdAt(request.getCreatedAt())
+                .missionaryId(request.getMissionary().getId())
+                .missionaryName(request.getMissionary().getMissionaryName())
+                .build();
     }
 }
