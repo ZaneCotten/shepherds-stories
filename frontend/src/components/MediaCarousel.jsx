@@ -16,6 +16,17 @@ export const MediaCarousel = ({media, isPreview = false}) => {
     };
 
     const currentItem = media[currentIndex];
+    const sanitizeMediaSrc = (url, previewMode) => {
+        if (typeof url !== "string" || url.trim() === "") return "";
+        try {
+            const parsed = new URL(url, window.location.origin);
+            const allowedProtocols = previewMode ? ["blob:"] : ["https:", "http:"];
+            return allowedProtocols.includes(parsed.protocol) ? parsed.href : "";
+        } catch {
+            return "";
+        }
+    };
+    const safeSrc = sanitizeMediaSrc(currentItem?.url, isPreview);
 
     return (
         <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden group">
@@ -24,16 +35,16 @@ export const MediaCarousel = ({media, isPreview = false}) => {
                 {isPreview ? (
                     // Rendering for File Objects (Previews)
                     currentItem.type?.startsWith("video/") ? (
-                        <video src={currentItem.url} className="max-h-full"/>
+                        <video src={safeSrc} className="max-h-full"/>
                     ) : (
-                        <img src={currentItem.url} className="w-full h-full object-cover" alt="preview"/>
+                        <img src={safeSrc} className="w-full h-full object-cover" alt="preview"/>
                     )
                 ) : (
                     // Rendering for Saved S3 Keys (Live Posts)
                     currentItem.mediaType === "VIDEO" ? (
-                        <video src={currentItem.url} controls className="max-h-full"/>
+                        <video src={safeSrc} controls className="max-h-full"/>
                     ) : (
-                        <img src={currentItem.url} className="w-full h-full object-cover"
+                        <img src={safeSrc} className="w-full h-full object-cover"
                              alt="content"/>
                     )
                 )}
