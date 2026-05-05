@@ -298,12 +298,26 @@ public class CommentController {
         boolean liked = currentUser != null && commentLikeRepository.existsByCommentIdAndUserId(commentId, currentUser.getId());
         String lastLikerName = resolveLastLikerName(commentId, currentUser);
 
+        User user = comment.getUser();
+        String bio = null;
+        String region = null;
+        if (user.getRole() == Role.MISSIONARY) {
+            MissionaryProfile mp = missionaryProfileRepository.findById(user.getId()).orElse(null);
+            if (mp != null) {
+                bio = mp.getBiography();
+                region = mp.getLocationRegion();
+            }
+        }
+
         return CommentDTO.builder()
                 .id(comment.getId())
                 .postId(comment.getPost().getId())
                 .userId(comment.getUser().getId())
                 .userName(getUserName(comment.getUser()))
                 .userProfilePictureUrl(s3Service.generatePresignedUrl(comment.getUser().getProfilePictureKey()))
+                .userRole(user.getRole().name())
+                .userBiography(bio)
+                .userLocationRegion(region)
                 .content(comment.getContent())
                 .parentCommentId(comment.getParentComment() != null ? comment.getParentComment().getId() : null)
                 .createdAt(comment.getCreatedAt())

@@ -205,7 +205,7 @@ public class SupporterController {
         }
 
         connection.setStatus(RequestStatus.REJECTED);
-        connection.setProcessedAt(OffsetDateTime.now());
+        connection.setProcessedAt(OffsetDateTime.now().minusMinutes(2)); // Allow immediate reconnection
         connectionRepository.save(connection);
 
         return ResponseEntity.ok(Map.of(MESSAGE_KEY, "Missionary removed"));

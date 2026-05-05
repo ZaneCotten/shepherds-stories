@@ -1,7 +1,9 @@
 import React, {useState} from 'react';
+import ProfileModal from "../components/ProfileModal.jsx";
 
 export const ConnectionRequests = ({requests, setRequests}) => {
     const [error, setError] = useState("");
+    const [selectedUser, setSelectedUser] = useState(null);
     const handleRespond = async (requestId, approve) => {
         setError("");
         try {
@@ -32,7 +34,16 @@ export const ConnectionRequests = ({requests, setRequests}) => {
                     {requests.map((req) => (
                         <div key={req.id}
                              className="flex justify-between items-center p-6 bg-white rounded-2xl border border-accent-light-green shadow-lg hover:shadow-xl transition-shadow">
-                            <span className="text-lg font-bold text-accent-dark-green">{req.supporterName}</span>
+                            <span
+                                className="text-lg font-bold text-accent-dark-green cursor-pointer hover:underline"
+                                onClick={() => setSelectedUser({
+                                    userName: req.supporterName,
+                                    profilePictureUrl: req.profilePictureUrl,
+                                    role: 'SUPPORTER'
+                                })}
+                            >
+                                {req.supporterName}
+                            </span>
                             <div className="flex gap-3">
                                 <button onClick={() => handleRespond(req.id, true)}
                                         className="px-6 py-2 rounded-xl bg-accent-mid-green text-white text-sm font-bold hover:bg-accent-dark-green transition shadow-md active:scale-95">Approve
@@ -45,6 +56,11 @@ export const ConnectionRequests = ({requests, setRequests}) => {
                     ))}
                 </div>
             )}
+            <ProfileModal
+                isOpen={!!selectedUser}
+                onClose={() => setSelectedUser(null)}
+                user={selectedUser}
+            />
         </div>
     );
 };

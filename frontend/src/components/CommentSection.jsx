@@ -1,4 +1,5 @@
 import {useState, useEffect} from "react";
+import ProfileModal from "./ProfileModal.jsx";
 
 export const CommentSection = ({postId, postAuthorId}) => {
     const [comments, setComments] = useState([]);
@@ -12,6 +13,7 @@ export const CommentSection = ({postId, postAuthorId}) => {
 
     const [error, setError] = useState("");
     const [deletingCommentId, setDeletingCommentId] = useState(null);
+    const [selectedUserProfile, setSelectedUserProfile] = useState(null);
 
     const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
     const currentUserId = currentUser?.id || currentUser?.userId;
@@ -127,7 +129,9 @@ export const CommentSection = ({postId, postAuthorId}) => {
             <div key={comment.id} className="flex flex-col gap-1 mt-2">
                 <div className="flex gap-2 items-start">
                     <div
-                        className="w-8 h-8 rounded-full overflow-hidden border border-accent-mid-green bg-gray-100 flex items-center justify-center shrink-0">
+                        className="w-8 h-8 rounded-full overflow-hidden border border-accent-mid-green bg-gray-100 flex items-center justify-center shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => setSelectedUserProfile(comment)}
+                    >
                         {comment.userProfilePictureUrl ? (
                             <img src={comment.userProfilePictureUrl} alt={comment.userName}
                                  className="w-full h-full object-cover"/>
@@ -144,7 +148,9 @@ export const CommentSection = ({postId, postAuthorId}) => {
                         {/* Comment Bubble */}
                         <div className="bg-gray-100 px-3 py-2 rounded-2xl relative">
                             <div
-                                className="font-bold text-accent-dark-green text-body-small hover:underline cursor-pointer">
+                                className="font-bold text-accent-dark-green text-body-small hover:underline cursor-pointer"
+                                onClick={() => setSelectedUserProfile(comment)}
+                            >
                                 {comment.userName}
                             </div>
 
@@ -270,6 +276,11 @@ export const CommentSection = ({postId, postAuthorId}) => {
                     </form>
                 </div>
             )}
+            <ProfileModal
+                isOpen={!!selectedUserProfile}
+                onClose={() => setSelectedUserProfile(null)}
+                user={selectedUserProfile}
+            />
         </div>
     );
 };

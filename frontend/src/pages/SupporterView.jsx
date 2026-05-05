@@ -1,6 +1,7 @@
 import {useState, useEffect} from "react";
 import {CommentSection} from "../components/CommentSection";
 import {MediaCarousel} from "../components/MediaCarousel";
+import ProfileModal from "../components/ProfileModal.jsx";
 
 export const SupporterView = () => {
     const [inviteCode, setInviteCode] = useState("");
@@ -15,6 +16,7 @@ export const SupporterView = () => {
     const [prayerRequests, setPrayerRequests] = useState([]);
     const [activeTab, setActiveTab] = useState("dashboard");
     const [editProfile, setEditProfile] = useState({firstName: "", lastName: ""});
+    const [selectedUserProfile, setSelectedUserProfile] = useState(null);
     const [settingsError, setSettingsError] = useState("");
     const [settingsSuccess, setSettingsSuccess] = useState("");
 
@@ -345,7 +347,14 @@ export const SupporterView = () => {
                                                     <div className="flex justify-between items-start mb-1">
                                                         <h4 className="font-bold text-accent-dark-green text-sm">{req.title}</h4>
                                                         <span
-                                                            className="text-[9px] font-bold text-gray-400 uppercase">{req.missionaryName}</span>
+                                                            className="text-[9px] font-bold text-gray-400 uppercase cursor-pointer hover:underline"
+                                                            onClick={() => {
+                                                                const missionary = missionaries.find(m => m.missionaryName === req.missionaryName);
+                                                                if (missionary) setSelectedUserProfile(missionary);
+                                                            }}
+                                                        >
+                                                            {req.missionaryName}
+                                                        </span>
                                                     </div>
                                                     <p className="text-xs text-gray-600 line-clamp-3 hover:line-clamp-none transition-all cursor-default">{req.content}</p>
                                                 </div>
@@ -419,7 +428,8 @@ export const SupporterView = () => {
                                                     <div className="flex-1">
                                                         {post.title &&
                                                             <h3 className="text-2xl font-bold text-accent-dark-green mb-1">{post.title}</h3>}
-                                                        <p className="text-accent-mid-green font-semibold text-sm">
+                                                        <p className="text-accent-mid-green font-semibold text-sm cursor-pointer hover:underline"
+                                                           onClick={() => setSelectedUserProfile(post)}>
                                                             By {post.authorName}
                                                         </p>
                                                     </div>
@@ -508,7 +518,8 @@ export const SupporterView = () => {
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             {missionaries.map(m => (
                                                 <div key={m.id}
-                                                     className="bg-white p-6 rounded-2xl border border-accent-mid-green/20 shadow-sm flex items-start gap-4">
+                                                     className="bg-white p-6 rounded-2xl border border-accent-mid-green/20 shadow-sm flex items-start gap-4 cursor-pointer hover:shadow-md transition-all group"
+                                                     onClick={() => setSelectedUserProfile(m)}>
                                                     <div
                                                         className="w-16 h-16 rounded-full overflow-hidden border border-accent-mid-green/30 flex-shrink-0">
                                                         {m.profilePictureUrl ? (
@@ -529,13 +540,16 @@ export const SupporterView = () => {
                                                         )}
                                                     </div>
                                                     <div className="flex-1">
-                                                        <h4 className="font-bold text-accent-dark-green">{m.missionaryName}</h4>
+                                                        <h4 className="font-bold text-accent-dark-green group-hover:underline">{m.missionaryName}</h4>
                                                         <p className="text-accent-mid-green text-xs font-medium mb-2">📍 {m.locationRegion || "Global"}</p>
                                                         {m.biography &&
                                                             <p className="text-gray-600 text-xs line-clamp-2 italic">"{m.biography}"</p>}
                                                     </div>
                                                     <button
-                                                        onClick={() => handleRemoveMissionary(m.id)}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleRemoveMissionary(m.id);
+                                                        }}
                                                         className="px-3 py-1.5 text-xs font-bold text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200 border border-transparent hover:border-red-100"
                                                     >
                                                         Unfollow
@@ -668,6 +682,11 @@ export const SupporterView = () => {
                     </div>
                 </div>
             </div>
+            <ProfileModal
+                isOpen={!!selectedUserProfile}
+                onClose={() => setSelectedUserProfile(null)}
+                user={selectedUserProfile}
+            />
         </div>
     );
 };

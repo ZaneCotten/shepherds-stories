@@ -1,4 +1,5 @@
 import {useState, useEffect} from "react";
+import ProfileModal from "../components/ProfileModal.jsx";
 
 const SupporterList = () => {
     const [supporters, setSupporters] = useState([]);
@@ -7,6 +8,7 @@ const SupporterList = () => {
     const [error, setError] = useState("");
     const [removingSupporterId, setRemovingSupporterId] = useState(null);
     const [banningSupporterId, setBanningSupporterId] = useState(null);
+    const [selectedUser, setSelectedUser] = useState(null);
 
     useEffect(() => {
         fetchSupporters();
@@ -107,9 +109,10 @@ const SupporterList = () => {
                         filteredSupporters.map(supporter => (
                             <div key={supporter.id}
                                  className="bg-white p-6 rounded-2xl border border-accent-light-green flex items-center justify-between shadow-lg hover:shadow-xl transition-all">
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-4 cursor-pointer group"
+                                     onClick={() => setSelectedUser(supporter)}>
                                     <div
-                                        className="w-14 h-14 rounded-full overflow-hidden border-2 border-accent-mid-green bg-white flex-shrink-0 shadow-sm">
+                                        className="w-14 h-14 rounded-full overflow-hidden border-2 border-accent-mid-green bg-white flex-shrink-0 shadow-sm group-hover:opacity-80 transition-opacity">
                                         {supporter.profilePictureUrl ? (
                                             <img src={supporter.profilePictureUrl} alt=""
                                                  className="w-full h-full object-cover"/>
@@ -127,7 +130,7 @@ const SupporterList = () => {
                                         )}
                                     </div>
                                     <div>
-                                        <p className="text-lg font-bold text-accent-dark-green leading-none">{supporter.firstName} {supporter.lastName}</p>
+                                        <p className="text-lg font-bold text-accent-dark-green leading-none group-hover:underline">{supporter.firstName} {supporter.lastName}</p>
                                         <p className="text-accent-mid-green text-xs mt-1 font-medium">Active
                                             Supporter</p>
                                     </div>
@@ -177,6 +180,11 @@ const SupporterList = () => {
                     )}
                 </div>
             )}
+            <ProfileModal
+                isOpen={!!selectedUser}
+                onClose={() => setSelectedUser(null)}
+                user={selectedUser}
+            />
         </div>
     );
 };

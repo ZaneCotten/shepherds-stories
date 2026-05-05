@@ -1,10 +1,12 @@
 import React, {useState, useEffect} from 'react';
+import ProfileModal from "../components/ProfileModal.jsx";
 
 const BannedUsers = () => {
     const [bannedUsers, setBannedUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [unbanningId, setUnbanningId] = useState(null);
+    const [selectedUser, setSelectedUser] = useState(null);
 
     const fetchBannedUsers = async () => {
         setLoading(true);
@@ -53,8 +55,9 @@ const BannedUsers = () => {
             {bannedUsers.map(user => (
                 <div key={user.id}
                      className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-200 bg-gray-50">
+                    <div className="flex items-center gap-4 cursor-pointer group" onClick={() => setSelectedUser(user)}>
+                        <div
+                            className="w-12 h-12 rounded-full overflow-hidden border border-gray-200 bg-gray-50 group-hover:opacity-80 transition-opacity">
                             {user.profilePictureUrl ? (
                                 <img src={user.profilePictureUrl} alt={user.firstName}
                                      className="w-full h-full object-cover"/>
@@ -70,7 +73,7 @@ const BannedUsers = () => {
                             )}
                         </div>
                         <div>
-                            <h4 className="font-bold text-gray-900">{user.firstName} {user.lastName}</h4>
+                            <h4 className="font-bold text-gray-900 group-hover:underline">{user.firstName} {user.lastName}</h4>
                             <p className="text-xs text-gray-500">
                                 Banned on: {new Date(user.bannedAt).toLocaleDateString()}
                             </p>
@@ -85,6 +88,11 @@ const BannedUsers = () => {
                     </button>
                 </div>
             ))}
+            <ProfileModal
+                isOpen={!!selectedUser}
+                onClose={() => setSelectedUser(null)}
+                user={selectedUser}
+            />
         </div>
     );
 };

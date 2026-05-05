@@ -119,6 +119,7 @@ public class MissionaryProfileController {
                         return Map.of(
                                 "id", req.getId(),
                                 "supporterName", supporterName,
+                                "profilePictureUrl", (req.getSupporter() != null && req.getSupporter().getUser() != null) ? s3Service.generatePresignedUrl(req.getSupporter().getUser().getProfilePictureKey()) : "",
                                 "createdAt", (Object) (req.getCreatedAt() != null ? req.getCreatedAt().toString() : "")
                         );
                     })
@@ -162,7 +163,7 @@ public class MissionaryProfileController {
                             .id(s.getId())
                             .firstName(s.getFirstName())
                             .lastName(s.getLastName())
-                            .profilePictureUrl(s3Service.generatePresignedUrl(s.getUser().getProfilePictureKey()))
+                            .profilePictureUrl((s.getUser() != null) ? s3Service.generatePresignedUrl(s.getUser().getProfilePictureKey()) : "")
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -182,7 +183,7 @@ public class MissionaryProfileController {
         }
 
         connection.setStatus(RequestStatus.REJECTED);
-        connection.setProcessedAt(OffsetDateTime.now());
+        connection.setProcessedAt(OffsetDateTime.now().minusMinutes(2)); // Allow immediate reconnection
         connectionRepository.save(connection);
 
         return ResponseEntity.ok(Map.of(MESSAGE_KEY, "Supporter removed"));
@@ -215,7 +216,7 @@ public class MissionaryProfileController {
                             .id(s.getId())
                             .firstName(s.getFirstName())
                             .lastName(s.getLastName())
-                            .profilePictureUrl(s3Service.generatePresignedUrl(s.getUser().getProfilePictureKey()))
+                            .profilePictureUrl((s.getUser() != null) ? s3Service.generatePresignedUrl(s.getUser().getProfilePictureKey()) : "")
                             .bannedAt(req.getProcessedAt())
                             .build();
                 })

@@ -413,6 +413,7 @@ class SupporterControllerTest {
         assertEquals("Missionary removed", response.getBody().get("message"));
         assertEquals(RequestStatus.REJECTED, connection.getStatus());
         assertNotNull(connection.getProcessedAt());
+        assertTrue(connection.getProcessedAt().isBefore(OffsetDateTime.now().minusMinutes(1)));
         verify(connectionRepository).save(connection);
     }
 

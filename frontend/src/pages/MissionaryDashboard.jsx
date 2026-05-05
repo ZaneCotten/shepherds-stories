@@ -3,6 +3,7 @@ import PostFeed from "./PostFeed.jsx";
 import ConnectionRequests from "./ConnectionRequests.jsx";
 import SupporterList from "./SupporterList.jsx";
 import BannedUsers from "./BannedUsers.jsx";
+import ProfileModal from "../components/ProfileModal.jsx";
 
 const ExportManager = () => {
     const [dateRange, setDateRange] = useState({
@@ -140,6 +141,7 @@ export const MissionaryDashboard = () => {
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isUploading, setIsUploading] = useState(false);
+    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const [settingsError, setSettingsError] = useState("");
     const [settingsSuccess, setSettingsSuccess] = useState("");
     const [showConfirmNewCode, setShowConfirmNewCode] = useState(false);
@@ -332,7 +334,10 @@ export const MissionaryDashboard = () => {
                             </label>
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold text-accent-dark-green">{profile?.missionaryName || "Missionary Dashboard"}</h1>
+                            <h1 className="text-3xl font-bold text-accent-dark-green hover:underline cursor-pointer"
+                                onClick={() => setIsProfileModalOpen(true)}>
+                                {profile?.missionaryName || "Missionary Dashboard"}
+                            </h1>
                             <div className="flex flex-col gap-1">
                                 <p className="text-accent-mid-green font-medium flex items-center gap-2">
                                     <span>📍 {profile?.locationRegion || "Global"}</span>
@@ -665,6 +670,11 @@ export const MissionaryDashboard = () => {
                     )}
                 </div>
             </div>
+            <ProfileModal
+                isOpen={isProfileModalOpen}
+                onClose={() => setIsProfileModalOpen(false)}
+                user={profile}
+            />
         </div>
     );
 };

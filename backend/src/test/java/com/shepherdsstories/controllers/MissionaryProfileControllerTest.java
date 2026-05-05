@@ -432,6 +432,33 @@ class MissionaryProfileControllerTest {
         assertEquals("Supporter is not banned.", response.getBody().get("message"));
     }
 
+    @Test
+    void removeSupporter_Success() {
+        String email = "missionary@example.com";
+        UUID userId = UUID.randomUUID();
+        UUID supporterId = UUID.randomUUID();
+
+        User user = new User();
+        user.setId(userId);
+        user.setEmail(email);
+
+        ConnectionRequest connection = new ConnectionRequest();
+        connection.setStatus(RequestStatus.APPROVED);
+
+        setupAuth(email);
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(connectionRepository.findByMissionaryIdAndSupporterId(userId, supporterId)).thenReturn(Optional.of(connection));
+
+        ResponseEntity<Map<String, String>> response = controller.removeSupporter(supporterId);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("Supporter removed", response.getBody().get("message"));
+        assertEquals(RequestStatus.REJECTED, connection.getStatus());
+        assertNotNull(connection.getProcessedAt());
+        assertTrue(connection.getProcessedAt().isBefore(OffsetDateTime.now().minusMinutes(1)));
+        verify(connectionRepository).save(connection);
+    }
+
     private void setupAuth(String email) {
         Authentication auth = mock(Authentication.class);
         when(auth.isAuthenticated()).thenReturn(true);
