@@ -305,7 +305,7 @@ export const SupporterView = () => {
 
                 {/* Tabs */}
                 <div
-                    className="flex flex-wrap justify-center items-center gap-2 p-1 bg-gray-100/50 backdrop-blur-md rounded-2xl mb-8 border border-white/20 sticky top-4 z-40 shadow-sm w-full max-w-2xl mx-auto relative">
+                    className="flex flex-wrap justify-center items-center gap-2 p-1 bg-gray-100/50 backdrop-blur-md rounded-2xl mb-8 border border-white/20 sticky top-4 z-40 shadow-sm w-full max-w-2xl mx-auto">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
@@ -326,7 +326,7 @@ export const SupporterView = () => {
                     {/* Prayer Requests Side Bar - Only on Feed */}
                     {activeTab === 'feed' && (
                         <div
-                            className="w-full lg:w-80 flex-shrink-0 animate-in fade-in slide-in-from-right-4 duration-500">
+                            className="w-full lg:w-80 shrink-0 animate-in fade-in slide-in-from-right-4 duration-500">
                             <div className="lg:sticky lg:top-24 space-y-4">
                                 <div className="bg-white p-6 rounded-2xl border border-accent-mid-green shadow-sm">
                                     <h2 className="text-xl font-bold text-accent-dark-green mb-4 flex items-center gap-2">
@@ -440,6 +440,15 @@ export const SupporterView = () => {
                                                                 timeStyle: 'short'
                                                             })}
                                                         </p>
+                                                        {post.updatedAt && new Date(post.updatedAt).getTime() - new Date(post.createdAt).getTime() > 60000 && (
+                                                            <p className="text-gray-400 text-[10px] font-bold uppercase tracking-wider mt-0.5">
+                                                                Updated
+                                                                at {new Date(post.updatedAt).toLocaleString([], {
+                                                                dateStyle: 'medium',
+                                                                timeStyle: 'short'
+                                                            })}
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 </div>
 
@@ -521,7 +530,7 @@ export const SupporterView = () => {
                                                      className="bg-white p-6 rounded-2xl border border-accent-mid-green/20 shadow-sm flex items-start gap-4 cursor-pointer hover:shadow-md transition-all group"
                                                      onClick={() => setSelectedUserProfile(m)}>
                                                     <div
-                                                        className="w-16 h-16 rounded-full overflow-hidden border border-accent-mid-green/30 flex-shrink-0">
+                                                        className="w-16 h-16 rounded-full overflow-hidden border border-accent-mid-green/30 shrink-0">
                                                         {m.profilePictureUrl ? (
                                                             <img src={m.profilePictureUrl} alt={m.missionaryName}
                                                                  className="w-full h-full object-cover"/>
