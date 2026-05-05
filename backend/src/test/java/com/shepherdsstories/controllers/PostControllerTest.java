@@ -1,19 +1,11 @@
 package com.shepherdsstories.controllers;
 
+import com.shepherdsstories.data.enums.MediaType;
 import com.shepherdsstories.data.enums.RequestStatus;
 import com.shepherdsstories.data.enums.Role;
-import com.shepherdsstories.data.repositories.MediaRepository;
-import com.shepherdsstories.data.repositories.MissionaryProfileRepository;
-import com.shepherdsstories.data.repositories.PostLikeRepository;
-import com.shepherdsstories.data.repositories.PostRepository;
-import com.shepherdsstories.data.repositories.SupporterProfileRepository;
-import com.shepherdsstories.data.repositories.UserRepository;
+import com.shepherdsstories.dtos.MediaDTO;
 import com.shepherdsstories.dtos.PostDTO;
-import com.shepherdsstories.entities.MissionaryProfile;
-import com.shepherdsstories.entities.Post;
-import com.shepherdsstories.entities.PostLike;
-import com.shepherdsstories.entities.SupporterProfile;
-import com.shepherdsstories.entities.User;
+import com.shepherdsstories.entities.*;
 import com.shepherdsstories.services.S3Service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,22 +30,19 @@ import static org.mockito.Mockito.*;
 class PostControllerTest {
 
     @Mock
-    private PostRepository postRepository;
+    private com.shepherdsstories.data.repositories.PostRepository postRepository;
 
     @Mock
-    private MissionaryProfileRepository missionaryProfileRepository;
+    private com.shepherdsstories.data.repositories.MissionaryProfileRepository missionaryProfileRepository;
 
     @Mock
-    private SupporterProfileRepository supporterProfileRepository;
+    private com.shepherdsstories.data.repositories.SupporterProfileRepository supporterProfileRepository;
 
     @Mock
-    private UserRepository userRepository;
+    private com.shepherdsstories.data.repositories.UserRepository userRepository;
 
     @Mock
-    private PostLikeRepository postLikeRepository;
-
-    @Mock
-    private MediaRepository mediaRepository;
+    private com.shepherdsstories.data.repositories.PostLikeRepository postLikeRepository;
 
     @Mock
     private S3Service s3Service;
@@ -62,7 +51,7 @@ class PostControllerTest {
     private PostController controller;
 
     private User missionaryUser;
-    private MissionaryProfile missionaryProfile;
+    private com.shepherdsstories.entities.MissionaryProfile missionaryProfile;
     private Authentication auth;
 
     @BeforeEach
@@ -72,7 +61,7 @@ class PostControllerTest {
         missionaryUser.setEmail("missionary@test.com");
         missionaryUser.setRole(Role.MISSIONARY);
 
-        missionaryProfile = new MissionaryProfile();
+        missionaryProfile = new com.shepherdsstories.entities.MissionaryProfile();
         missionaryProfile.setId(missionaryUser.getId());
         missionaryProfile.setUser(missionaryUser);
         missionaryProfile.setMissionaryName("Test Missionary");
@@ -105,6 +94,7 @@ class PostControllerTest {
         ResponseEntity<PostDTO> response = controller.createPost(postDTO, auth);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
         assertEquals("Test Title", response.getBody().getTitle());
         assertEquals("Test Missionary", response.getBody().getAuthorName());
     }
@@ -123,6 +113,7 @@ class PostControllerTest {
         ResponseEntity<List<PostDTO>> response = controller.getMyPosts(auth);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
         assertEquals(1, response.getBody().size());
         assertEquals("Title", response.getBody().getFirst().getTitle());
     }
@@ -151,6 +142,7 @@ class PostControllerTest {
         ResponseEntity<List<PostDTO>> response = controller.getFeed(null, supporterAuth);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
         assertEquals(1, response.getBody().size());
         assertEquals("Missionary Update", response.getBody().getFirst().getTitle());
         assertEquals("Test Missionary", response.getBody().getFirst().getAuthorName());
@@ -180,6 +172,7 @@ class PostControllerTest {
         ResponseEntity<List<PostDTO>> response = controller.getFeed(filterId, supporterAuth);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
         assertEquals(1, response.getBody().size());
         assertEquals("Filtered Update", response.getBody().getFirst().getTitle());
         verify(postRepository).findAllForSupporter(supporterUser.getId(), RequestStatus.APPROVED, filterId);
@@ -204,13 +197,83 @@ class PostControllerTest {
         when(postRepository.findById(postId)).thenReturn(Optional.of(existingPost));
         when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ResponseEntity<PostDTO> response = controller.updatePost(postId, updateDTO, auth);
+        ResponseEntity<Object> response = controller.updatePost(postId, updateDTO, auth);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("New Title", response.getBody().getTitle());
-        assertEquals("New Content", response.getBody().getContent());
+        PostDTO body = (PostDTO) response.getBody();
+        assertNotNull(body);
+        assertEquals("New Title", body.getTitle());
+        assertEquals("New Content", body.getContent());
         // Verify creation time is preserved (within some tolerance or just not null)
-        assertEquals(existingPost.getCreatedAt(), response.getBody().getCreatedAt());
+        assertEquals(existingPost.getCreatedAt(), body.getCreatedAt());
+    }
+
+    @Test
+    void updatePost_WithMediaChanges_Success() {
+        UUID postId = UUID.randomUUID();
+        Post existingPost = new Post();
+        existingPost.setId(postId);
+        existingPost.setAuthor(missionaryProfile);
+
+        Media existingMedia = new Media();
+        existingMedia.setId(UUID.randomUUID());
+        existingMedia.setS3Key("old-key");
+        existingMedia.setPost(existingPost);
+        existingPost.getMedia().add(existingMedia);
+
+        PostDTO updateDTO = PostDTO.builder()
+                .title("Updated Title")
+                .content("Updated Content")
+                .media(List.of(
+                        MediaDTO.builder().id(existingMedia.getId()).s3Key("old-key").build(),
+                        MediaDTO.builder().s3Key("new-key").fileName("new.jpg").mediaType(MediaType.IMAGE).build()
+                ))
+                .build();
+
+        when(postRepository.findById(postId)).thenReturn(Optional.of(existingPost));
+        when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(s3Service.getBucketName()).thenReturn("test-bucket");
+
+        ResponseEntity<Object> response = controller.updatePost(postId, updateDTO, auth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        PostDTO body = (PostDTO) response.getBody();
+        assertNotNull(body);
+        assertNotNull(body.getMedia());
+        assertEquals(2, body.getMedia().size());
+        verify(s3Service, never()).deleteObject("old-key");
+    }
+
+    @Test
+    void updatePost_RemoveMedia_Success() {
+        UUID postId = UUID.randomUUID();
+        Post existingPost = new Post();
+        existingPost.setId(postId);
+        existingPost.setAuthor(missionaryProfile);
+
+        Media existingMedia = new Media();
+        existingMedia.setId(UUID.randomUUID());
+        existingMedia.setS3Key("old-key");
+        existingMedia.setPost(existingPost);
+        existingPost.getMedia().add(existingMedia);
+
+        PostDTO updateDTO = PostDTO.builder()
+                .title("Updated Title")
+                .content("Updated Content")
+                .media(List.of()) // Remove all media
+                .build();
+
+        when(postRepository.findById(postId)).thenReturn(Optional.of(existingPost));
+        when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ResponseEntity<Object> response = controller.updatePost(postId, updateDTO, auth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        PostDTO body = (PostDTO) response.getBody();
+        assertNotNull(body);
+        assertNotNull(body.getMedia());
+        assertTrue(body.getMedia().isEmpty());
+        verify(s3Service).deleteObject("old-key");
     }
 
     @Test
@@ -241,6 +304,7 @@ class PostControllerTest {
         ResponseEntity<PostDTO> response = controller.toggleLike(postId, auth);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
         assertEquals(1, response.getBody().getLikeCount());
         assertTrue(response.getBody().getLiked());
         assertEquals("Jane Doe", response.getBody().getLastLikerName());
@@ -287,6 +351,7 @@ class PostControllerTest {
         ResponseEntity<List<PostDTO>> response = controller.getFeed(null, auth1);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
         assertEquals(1, response.getBody().size());
         PostDTO dto = response.getBody().getFirst();
         assertEquals(2, dto.getLikeCount());
@@ -336,6 +401,7 @@ class PostControllerTest {
         ResponseEntity<List<PostDTO>> response = controller.getFeed(null, auth1);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
         PostDTO dto = response.getBody().getFirst();
         assertEquals("John Doe", dto.getLastLikerName());
     }
@@ -356,6 +422,7 @@ class PostControllerTest {
         ResponseEntity<PostDTO> response = controller.toggleLike(postId, auth);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
         assertEquals(0, response.getBody().getLikeCount());
         assertFalse(response.getBody().getLiked());
         verify(postLikeRepository, times(1)).deleteById(any());
@@ -378,9 +445,42 @@ class PostControllerTest {
 
         when(postRepository.findById(postId)).thenReturn(Optional.of(existingPost));
 
-        ResponseEntity<PostDTO> response = controller.updatePost(postId, updateDTO, auth);
+        ResponseEntity<Object> response = controller.updatePost(postId, updateDTO, auth);
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
         verify(postRepository, never()).save(any());
+    }
+
+    @Test
+    void deletePost_Success() {
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        post.setAuthor(missionaryProfile);
+
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+
+        ResponseEntity<Object> response = controller.deletePost(postId, auth);
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        verify(postRepository, times(1)).delete(post);
+    }
+
+    @Test
+    void deletePost_Forbidden() {
+        UUID postId = UUID.randomUUID();
+        MissionaryProfile otherMissionary = new MissionaryProfile();
+        otherMissionary.setId(UUID.randomUUID());
+
+        Post post = new Post();
+        post.setId(postId);
+        post.setAuthor(otherMissionary);
+
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+
+        ResponseEntity<Object> response = controller.deletePost(postId, auth);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        verify(postRepository, never()).delete(any());
     }
 }
