@@ -6,6 +6,7 @@ import com.shepherdsstories.data.records.RegistrationRequest;
 import com.shepherdsstories.data.repositories.UserRepository;
 import com.shepherdsstories.dtos.RegistrationRequestDTO;
 import com.shepherdsstories.entities.User;
+import com.shepherdsstories.services.AuditLogService;
 import com.shepherdsstories.services.RegistrationService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -39,11 +40,14 @@ class RegistrationControllerTest {
     @Mock
     private SecurityContextRepository securityContextRepository;
 
+    @Mock
+    private AuditLogService auditLogService;
+
     private RegistrationController registrationController;
 
     @BeforeEach
     void setUp() {
-        registrationController = new RegistrationController(registrationService, userRepository, securityContextRepository);
+        registrationController = new RegistrationController(registrationService, userRepository, securityContextRepository, auditLogService);
     }
 
     @Test

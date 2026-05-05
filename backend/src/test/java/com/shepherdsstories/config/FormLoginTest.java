@@ -8,6 +8,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import com.shepherdsstories.services.AuditLogService;
 
 import org.springframework.security.web.context.SecurityContextRepository;
 
@@ -25,8 +26,9 @@ class FormLoginTest {
     void setUp() {
         SecurityConfig securityConfig = new SecurityConfig();
         SecurityContextRepository securityContextRepository = mock(SecurityContextRepository.class);
-        successHandler = securityConfig.formLoginSuccessHandler(securityContextRepository);
-        failureHandler = securityConfig.formLoginFailureHandler();
+        AuditLogService auditLogService = mock(AuditLogService.class);
+        successHandler = securityConfig.formLoginSuccessHandler(securityContextRepository, auditLogService);
+        failureHandler = securityConfig.formLoginFailureHandler(auditLogService);
     }
 
     @Test
