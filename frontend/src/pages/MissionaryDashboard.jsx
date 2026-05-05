@@ -288,12 +288,15 @@ export const MissionaryDashboard = () => {
     );
 
     return (
-        <div className="bg-linear-to-r from-white to-accent-light-green min-h-screen">
+        <div className="bg-linear-to-r from-white to-accent-light-green min-h-screen relative">
             <div className="max-w-7xl mx-auto px-4 py-8">
                 {/* Header */}
-                <div className="flex justify-between items-center mb-12 w-full max-w-4xl">
+                <div className="flex justify-between items-center mb-12 w-full max-w-2xl mx-auto">
                     <div className="flex items-center gap-4">
-                        <div className="relative group">
+                        <div
+                            className="relative group cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => setActiveTab('settings')}
+                        >
                             <div
                                 className="w-16 h-16 rounded-full overflow-hidden border-2 border-accent-mid-green bg-white shadow-sm flex items-center justify-center">
                                 {profile?.profilePictureUrl ? (
@@ -346,19 +349,22 @@ export const MissionaryDashboard = () => {
                             </div>
                         </div>
                     </div>
-                    <button onClick={handleLogout}
-                            className="px-4 py-2 rounded-full border border-accent-mid-green text-accent-mid-green text-sm font-bold hover:bg-accent-mid-green hover:text-white transition-all duration-200">
+                    <button
+                        onClick={handleLogout}
+                        className="px-4 py-2 rounded-full border border-accent-mid-green text-accent-mid-green text-sm font-bold hover:bg-accent-mid-green hover:text-white transition-all duration-200"
+                    >
                         Logout
                     </button>
                 </div>
 
                 {/* Tabs */}
-                <div className="flex flex-wrap justify-center gap-2 mb-12 p-1 bg-gray-100 rounded-xl w-fit mx-auto">
+                <div
+                    className="flex flex-wrap justify-center items-center gap-2 p-1 bg-gray-100/50 backdrop-blur-md rounded-2xl mb-8 border border-white/20 sticky top-4 z-40 shadow-sm w-full max-w-2xl mx-auto relative">
                     {[
                         {
                             id: 'feed', label: 'Updates Feed', icon: (
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                                     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                     fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
                                      strokeLinejoin="round">
                                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
@@ -367,8 +373,8 @@ export const MissionaryDashboard = () => {
                         },
                         {
                             id: 'supporters', label: 'Supporters', icon: (
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                                     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                     fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
                                      strokeLinejoin="round">
                                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                                     <circle cx="9" cy="7" r="4"></circle>
@@ -381,8 +387,8 @@ export const MissionaryDashboard = () => {
                             id: 'requests',
                             label: `Requests ${requests.length > 0 ? `(${requests.length})` : ''}`,
                             icon: (
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                                     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                     fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
                                      strokeLinejoin="round">
                                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                                     <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -391,8 +397,8 @@ export const MissionaryDashboard = () => {
                         },
                         {
                             id: 'settings', label: 'Settings', icon: (
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                                     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                     fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
                                      strokeLinejoin="round">
                                     <circle cx="12" cy="12" r="3"></circle>
                                     <path
@@ -404,10 +410,14 @@ export const MissionaryDashboard = () => {
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === tab.id ? 'bg-white text-accent-dark-green shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
+                                activeTab === tab.id
+                                    ? 'bg-white text-accent-dark-green shadow-md scale-105'
+                                    : 'text-gray-500 hover:text-accent-mid-green hover:bg-white/50'
+                            }`}
                         >
                             {tab.icon}
-                            {tab.label}
+                            <span className={activeTab === tab.id ? 'block' : 'hidden sm:block'}>{tab.label}</span>
                         </button>
                     ))}
                 </div>
@@ -428,7 +438,68 @@ export const MissionaryDashboard = () => {
                                 <p className="text-accent-mid-green text-sm mb-6 font-bold">{settingsSuccess}</p>}
 
                             <div className="mb-12">
-                                <h3 className="text-lg font-bold text-accent-dark-green mb-4">Profile Information</h3>
+                                <h3 className="text-lg font-bold text-accent-dark-green mb-6">Profile Information</h3>
+
+                                <div
+                                    className="flex items-center gap-6 mb-8 p-4 bg-accent-light-green/20 rounded-2xl border border-accent-mid-green/10">
+                                    <div className="relative">
+                                        <div
+                                            className="w-24 h-24 rounded-full overflow-hidden border-2 border-accent-mid-green bg-white shadow-sm flex items-center justify-center">
+                                            {profile?.profilePictureUrl ? (
+                                                <img src={profile.profilePictureUrl} alt="Profile"
+                                                     className="w-full h-full object-cover"/>
+                                            ) : (
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"
+                                                     viewBox="0 0 24 24" fill="none" stroke="#2D5A27" strokeWidth="2"
+                                                     strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                                    <circle cx="12" cy="7" r="4"></circle>
+                                                </svg>
+                                            )}
+                                            {isUploading && (
+                                                <div
+                                                    className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                                    <div
+                                                        className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <label
+                                            className="absolute -bottom-2 -right-2 bg-white rounded-full p-3 border border-accent-mid-green cursor-pointer shadow-md hover:bg-accent-light-green transition-colors">
+                                            <input
+                                                id="missionary-photo-upload"
+                                                type="file"
+                                                className="hidden"
+                                                accept="image/*"
+                                                onChange={handleFileChange}
+                                                disabled={isUploading}
+                                            />
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                                                 viewBox="0 0 24 24" fill="none" stroke="#2D5A27" strokeWidth="2.5"
+                                                 strokeLinecap="round" strokeLinejoin="round">
+                                                <path
+                                                    d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                                                <circle cx="12" cy="13" r="4"></circle>
+                                            </svg>
+                                        </label>
+                                    </div>
+                                    <div>
+                                        <h4 className="text-sm font-bold text-accent-dark-green uppercase tracking-widest">Profile
+                                            Picture</h4>
+                                        <p className="text-xs text-gray-500 mt-1 mb-3">Click the camera icon or button
+                                            below to upload a new
+                                            photo.</p>
+                                        <button
+                                            type="button"
+                                            onClick={() => document.getElementById('missionary-photo-upload').click()}
+                                            disabled={isUploading}
+                                            className="px-4 py-2 bg-white border border-accent-mid-green text-accent-mid-green text-xs font-bold rounded-lg hover:bg-accent-light-green transition-colors disabled:opacity-50"
+                                        >
+                                            {isUploading ? 'Uploading...' : 'Change Photo'}
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <form onSubmit={handleUpdateProfile} className="space-y-4">
                                     <div>
                                         <label
@@ -572,7 +643,7 @@ export const MissionaryDashboard = () => {
                             <div className="flex items-center justify-between p-4 rounded-xl border border-gray-100">
                                 <div>
                                     <h4 className="font-bold text-accent-dark-green">Code Status</h4>
-                                    <p className="text-sm text-gray-500">{profile?.isReferenceDisabled ? "Hidden from new supporters" : "Visible and active"}</p>
+                                    <p className="text-sm text-gray-500">{profile?.isReferenceDisabled ? "Inactive" : "Visible and active"}</p>
                                 </div>
                                 <button
                                     onClick={toggleReference}

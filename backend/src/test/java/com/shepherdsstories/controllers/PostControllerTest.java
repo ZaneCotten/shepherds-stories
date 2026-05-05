@@ -157,6 +157,35 @@ class PostControllerTest {
     }
 
     @Test
+    void getFeed_WithMissionaryFilter_Success() {
+        User supporterUser = new User();
+        supporterUser.setId(UUID.randomUUID());
+        supporterUser.setEmail("supporter@test.com");
+        supporterUser.setRole(Role.SUPPORTER);
+
+        Authentication supporterAuth = mock(Authentication.class);
+        when(supporterAuth.isAuthenticated()).thenReturn(true);
+        when(supporterAuth.getName()).thenReturn("supporter@test.com");
+        when(userRepository.findByEmailIgnoreCase("supporter@test.com")).thenReturn(Optional.of(supporterUser));
+
+        UUID filterId = missionaryProfile.getId();
+        Post post = new Post();
+        post.setId(UUID.randomUUID());
+        post.setTitle("Filtered Update");
+        post.setAuthor(missionaryProfile);
+        post.setCreatedAt(OffsetDateTime.now());
+
+        when(postRepository.findAllForSupporter(supporterUser.getId(), RequestStatus.APPROVED, filterId)).thenReturn(List.of(post));
+
+        ResponseEntity<List<PostDTO>> response = controller.getFeed(filterId, supporterAuth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(1, response.getBody().size());
+        assertEquals("Filtered Update", response.getBody().getFirst().getTitle());
+        verify(postRepository).findAllForSupporter(supporterUser.getId(), RequestStatus.APPROVED, filterId);
+    }
+
+    @Test
     void updatePost_Success() {
         UUID postId = UUID.randomUUID();
         Post existingPost = new Post();

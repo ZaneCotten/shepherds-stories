@@ -193,6 +193,24 @@ public class SupporterController {
         return ResponseEntity.ok(Map.of(MESSAGE_KEY, "Request sent!"));
     }
 
+    @PostMapping("/missionaries/{missionaryId}/remove")
+    @Transactional
+    public ResponseEntity<Map<String, String>> removeMissionary(@PathVariable java.util.UUID missionaryId, org.springframework.security.core.Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        ConnectionRequest connection = connectionRepository.findByMissionaryIdAndSupporterId(missionaryId, user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Connection not found"));
+
+        if (connection.getStatus() != RequestStatus.APPROVED) {
+            return ResponseEntity.badRequest().body(Map.of(MESSAGE_KEY, "You are not currently connected to this missionary."));
+        }
+
+        connection.setStatus(RequestStatus.REJECTED);
+        connection.setProcessedAt(OffsetDateTime.now());
+        connectionRepository.save(connection);
+
+        return ResponseEntity.ok(Map.of(MESSAGE_KEY, "Missionary removed"));
+    }
+
     private User getCurrentUser(org.springframework.security.core.Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new com.shepherdsstories.exceptions.UnauthenticatedException("Unauthenticated");

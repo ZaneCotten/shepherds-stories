@@ -393,6 +393,68 @@ class SupporterControllerTest {
     }
 
     @Test
+    void removeMissionary_Success() {
+        String email = "supporter@example.com";
+        UUID userId = UUID.randomUUID();
+        User user = createMockUser(email, userId);
+        OAuth2AuthenticationToken auth = createMockAuth(email);
+        UUID missionaryId = UUID.randomUUID();
+
+        ConnectionRequest connection = new ConnectionRequest();
+        connection.setStatus(RequestStatus.APPROVED);
+
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(connectionRepository.findByMissionaryIdAndSupporterId(missionaryId, user.getId()))
+                .thenReturn(Optional.of(connection));
+
+        ResponseEntity<Map<String, String>> response = controller.removeMissionary(missionaryId, auth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("Missionary removed", response.getBody().get("message"));
+        assertEquals(RequestStatus.REJECTED, connection.getStatus());
+        assertNotNull(connection.getProcessedAt());
+        verify(connectionRepository).save(connection);
+    }
+
+    @Test
+    void removeMissionary_NotConnected() {
+        String email = "supporter@example.com";
+        UUID userId = UUID.randomUUID();
+        User user = createMockUser(email, userId);
+        OAuth2AuthenticationToken auth = createMockAuth(email);
+        UUID missionaryId = UUID.randomUUID();
+
+        ConnectionRequest connection = new ConnectionRequest();
+        connection.setStatus(RequestStatus.PENDING);
+
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(connectionRepository.findByMissionaryIdAndSupporterId(missionaryId, user.getId()))
+                .thenReturn(Optional.of(connection));
+
+        ResponseEntity<Map<String, String>> response = controller.removeMissionary(missionaryId, auth);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("You are not currently connected to this missionary.", response.getBody().get("message"));
+        verify(connectionRepository, never()).save(any());
+    }
+
+    @Test
+    void removeMissionary_NotFound() {
+        String email = "supporter@example.com";
+        UUID userId = UUID.randomUUID();
+        User user = createMockUser(email, userId);
+        OAuth2AuthenticationToken auth = createMockAuth(email);
+        UUID missionaryId = UUID.randomUUID();
+
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(connectionRepository.findByMissionaryIdAndSupporterId(missionaryId, user.getId()))
+                .thenReturn(Optional.empty());
+
+        assertThrows(com.shepherdsstories.exceptions.ResourceNotFoundException.class, () ->
+                controller.removeMissionary(missionaryId, auth));
+    }
+
+    @Test
     void sendRequest_CaseInsensitive_Success() {
         String code = "ref123";
         String email = "supporter@example.com";
