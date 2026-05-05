@@ -160,17 +160,6 @@ export const MissionaryDashboard = () => {
         }
     };
 
-    const handleShare = () => {
-        if (navigator.share && profile?.referenceNumber) {
-            navigator.share({
-                title: "My Missionary Invite Code",
-                text: `Join me on Shepherds' Stories using my invite code: ${profile.referenceNumber}`,
-                url: window.location.origin + "/register?code=" + profile.referenceNumber
-            }).catch(console.error);
-        } else {
-            handleCopy();
-        }
-    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -364,7 +353,7 @@ export const MissionaryDashboard = () => {
 
                 {/* Tabs */}
                 <div
-                    className="flex flex-wrap justify-center items-center gap-2 p-1 bg-gray-100/50 backdrop-blur-md rounded-2xl mb-8 border border-white/20 sticky top-4 z-40 shadow-sm w-full max-w-2xl mx-auto relative">
+                    className="flex flex-wrap justify-center items-center gap-2 p-1 bg-gray-100/50 backdrop-blur-md rounded-2xl mb-8 border border-white/20 sticky top-4 z-40 shadow-sm w-full max-w-2xl mx-auto">
                     {[
                         {
                             id: 'feed', label: 'Updates Feed', icon: (
@@ -599,22 +588,6 @@ export const MissionaryDashboard = () => {
                                                                 d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                                                         </svg>
                                                     )}
-                                                </button>
-                                                <button
-                                                    onClick={handleShare}
-                                                    className="p-2 rounded-lg bg-white border border-accent-mid-green/20 text-accent-mid-green hover:bg-accent-light-green transition-colors shadow-sm"
-                                                    title="Share invite code"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                                         viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                         strokeWidth="2.5" strokeLinecap="round"
-                                                         strokeLinejoin="round">
-                                                        <circle cx="18" cy="5" r="3"></circle>
-                                                        <circle cx="6" cy="12" r="3"></circle>
-                                                        <circle cx="18" cy="19" r="3"></circle>
-                                                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-                                                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-                                                    </svg>
                                                 </button>
                                             </div>
                                         )}

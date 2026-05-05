@@ -2,6 +2,7 @@ package com.shepherdsstories.config;
 
 import com.shepherdsstories.data.repositories.UserRepository;
 import com.shepherdsstories.entities.User;
+import com.shepherdsstories.services.AuditLogService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,6 +28,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
@@ -34,6 +36,7 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @EnableWebSecurity
 public class SecurityConfig {
     private static final String APPLICATION_JSON = "application/json";
+    private static final String EMAIL_LITERAL = "email";
 
     private static String successBody(Authentication authentication) {
         String username = authentication.getName();
@@ -91,12 +94,12 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationSuccessHandler oauth2SuccessHandler(UserRepository userRepository, SecurityContextRepository securityContextRepository) {
+    public AuthenticationSuccessHandler oauth2SuccessHandler(UserRepository userRepository, SecurityContextRepository securityContextRepository, AuditLogService auditLogService) {
         return (request, response, authentication) -> {
             OAuth2AuthenticationToken authToken = (OAuth2AuthenticationToken) authentication;
             String provider = authToken.getAuthorizedClientRegistrationId().toUpperCase();
             String email = firstNonBlank(
-                    asString(authToken, "email"),
+                    asString(authToken, EMAIL_LITERAL),
                     authentication.getName()
             );
             String normalizedEmail = normalizeEmail(email);
@@ -114,6 +117,7 @@ public class SecurityConfig {
             Optional<User> userOptional = userRepository.findByEmailIgnoreCase(normalizedEmail)
                     .or(() -> userRepository.findByOauthId(oauthId));
             if (userOptional.isEmpty()) {
+                auditLogService.log("LOGIN_OAUTH2_NEW_USER", normalizedEmail, null, "Provider: " + provider + " - Redirecting to role selection", request.getRemoteAddr());
                 String url = String.format(
                         "http://localhost:5173/register/select-role?email=%s&provider=%s&name=%s&given_name=%s&family_name=%s",
                         encode(normalizedEmail),
@@ -125,6 +129,7 @@ public class SecurityConfig {
                 response.sendRedirect(url);
             } else {
                 User user = userOptional.get();
+                auditLogService.log("LOGIN_OAUTH2", normalizedEmail, user.getId(), "Provider: " + provider, request.getRemoteAddr());
                 String role = user.getRole().name();
                 String url = String.format("http://localhost:5173/oauth/callback?username=%s&role=%s&id=%s",
                         encode(normalizedEmail), encode(role), encode(user.getId().toString()));
@@ -136,8 +141,13 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationSuccessHandler formLoginSuccessHandler(SecurityContextRepository securityContextRepository) {
+    public AuthenticationSuccessHandler formLoginSuccessHandler(SecurityContextRepository securityContextRepository, AuditLogService auditLogService) {
         return (request, response, authentication) -> {
+            UUID userId = null;
+            if (authentication.getPrincipal() instanceof UserAuthConfig.AppUserDetails details) {
+                userId = details.getId();
+            }
+            auditLogService.log("LOGIN", authentication.getName(), userId, "Success", request.getRemoteAddr());
             SecurityContext context = SecurityContextHolder.getContext();
             securityContextRepository.saveContext(context, request, response);
             response.setStatus(HttpServletResponse.SC_OK);
@@ -147,8 +157,10 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationFailureHandler formLoginFailureHandler() {
-        return (_, response, _) -> {
+    public AuthenticationFailureHandler formLoginFailureHandler(AuditLogService auditLogService) {
+        return (request, response, _) -> {
+            String email = request.getParameter(EMAIL_LITERAL);
+            auditLogService.log("LOGIN_FAILED", email, null, "Invalid credentials", request.getRemoteAddr());
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType(APPLICATION_JSON);
             response.getWriter().write("{\"error\":\"Invalid email or password\"}");
@@ -164,7 +176,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, CustomOAuth2UserService customOAuth2UserService, CustomOidcUserService customOidcUserService, AuthenticationSuccessHandler oauth2SuccessHandler, AuthenticationSuccessHandler formLoginSuccessHandler, AuthenticationFailureHandler formLoginFailureHandler, SecurityContextRepository securityContextRepository) {
+    public SecurityFilterChain filterChain(HttpSecurity http, CustomOAuth2UserService customOAuth2UserService, CustomOidcUserService customOidcUserService, AuthenticationSuccessHandler oauth2SuccessHandler, AuthenticationSuccessHandler formLoginSuccessHandler, AuthenticationFailureHandler formLoginFailureHandler, SecurityContextRepository securityContextRepository, AuditLogService auditLogService) {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(withDefaults())
@@ -176,7 +188,7 @@ public class SecurityConfig {
                     auth.anyRequest().authenticated();
                 })
                 .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((request, response, authException) -> {
+                        .authenticationEntryPoint((request, response, _) -> {
                             if (request.getRequestURI().startsWith("/api/")) {
                                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                                 response.setContentType(APPLICATION_JSON);
@@ -187,13 +199,21 @@ public class SecurityConfig {
                         }))
                 .formLogin(form -> form
                         .loginProcessingUrl("/api/auth/login")
-                        .usernameParameter("email")
+                        .usernameParameter(EMAIL_LITERAL)
                         .successHandler(formLoginSuccessHandler)
                         .failureHandler(formLoginFailureHandler))
                 .logout(logout -> logout
                         .logoutUrl("/api/auth/logout")
-                        .logoutSuccessHandler((_, response, _) ->
-                                response.setStatus(HttpServletResponse.SC_OK)))
+                        .logoutSuccessHandler((request, response, authentication) -> {
+                            if (authentication != null) {
+                                UUID userId = null;
+                                if (authentication.getPrincipal() instanceof UserAuthConfig.AppUserDetails details) {
+                                    userId = details.getId();
+                                }
+                                auditLogService.log("LOGOUT", authentication.getName(), userId, "Success", request.getRemoteAddr());
+                            }
+                            response.setStatus(HttpServletResponse.SC_OK);
+                        }))
                 .oauth2Login(oauth -> oauth
                         .userInfoEndpoint(userInfo -> userInfo
                                 .userService(customOAuth2UserService)

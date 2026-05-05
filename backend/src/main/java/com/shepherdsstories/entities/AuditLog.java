@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Getter
@@ -14,13 +14,14 @@ import java.util.UUID;
 public class AuditLog {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue
+    @Column(name = "id", columnDefinition = "uuid", updatable = false, nullable = false)
+    private UUID id;
 
-    @Column(nullable = false)
-    private LocalDateTime timestamp = LocalDateTime.now();
+    @Column(name = "\"timestamp\"", nullable = false)
+    private OffsetDateTime timestamp = OffsetDateTime.now();
 
-    @Column(nullable = false)
+    @Column(name = "\"action\"", nullable = false)
     private String action; // e.g., "LOGIN_ATTEMPT", "STORY_VIEW", "PROFILE_UPDATE"
 
     @Column(name = "user_id")

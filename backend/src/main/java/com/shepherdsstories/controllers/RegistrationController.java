@@ -6,6 +6,7 @@ import com.shepherdsstories.data.repositories.UserRepository;
 import com.shepherdsstories.data.records.RegistrationRequest;
 import com.shepherdsstories.dtos.RegistrationRequestDTO;
 import com.shepherdsstories.entities.User;
+import com.shepherdsstories.services.AuditLogService;
 import com.shepherdsstories.services.RegistrationService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -24,15 +25,18 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/auth")
 public class RegistrationController {
     private static final String ERROR_KEY = "error";
+    private static final String USER_ALREADY_EXISTS = "User already exists";
     private final UserRepository userRepository;
 
     private final RegistrationService registrationService;
     private final SecurityContextRepository securityContextRepository;
+    private final AuditLogService auditLogService;
 
-    public RegistrationController(RegistrationService registrationService, UserRepository userRepository, SecurityContextRepository securityContextRepository) {
+    public RegistrationController(RegistrationService registrationService, UserRepository userRepository, SecurityContextRepository securityContextRepository, AuditLogService auditLogService) {
         this.registrationService = registrationService;
         this.userRepository = userRepository;
         this.securityContextRepository = securityContextRepository;
+        this.auditLogService = auditLogService;
     }
 
     private static String firstNonBlank(String... values) {
@@ -72,10 +76,12 @@ public class RegistrationController {
         String normalizedEmail = normalizeEmail(request.getEmail());
         request.setEmail(normalizedEmail);
         if (userRepository.findByEmailIgnoreCase(normalizedEmail).isPresent()) {
-            return ResponseEntity.badRequest().body(java.util.Map.of(ERROR_KEY, "User already exists"));
+            auditLogService.log("ACCOUNT_CREATION_FAILED", normalizedEmail, null, USER_ALREADY_EXISTS, httpRequest.getRemoteAddr());
+            return ResponseEntity.badRequest().body(java.util.Map.of(ERROR_KEY, USER_ALREADY_EXISTS));
         }
 
         registrationService.register(request);
+        auditLogService.log("ACCOUNT_CREATION", request.getEmail(), null, "Role: " + request.getRole(), httpRequest.getRemoteAddr());
         authenticateUser(request.getEmail(), request.getRole().name(), httpRequest, httpResponse);
 
         User user = userRepository.findByEmailIgnoreCase(normalizedEmail).orElseThrow();
@@ -118,7 +124,8 @@ public class RegistrationController {
         }
 
         if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
-            return ResponseEntity.badRequest().body(java.util.Map.of(ERROR_KEY, "User already exists"));
+            auditLogService.log("ACCOUNT_CREATION_SOCIAL_FAILED", email, null, USER_ALREADY_EXISTS, httpRequest.getRemoteAddr());
+            return ResponseEntity.badRequest().body(java.util.Map.of(ERROR_KEY, USER_ALREADY_EXISTS));
         }
 
         if (request.authProvider() == null || request.authProvider().isBlank()) {
@@ -148,6 +155,7 @@ public class RegistrationController {
         dto.setLastName(familyName);
 
         registrationService.registerSocial(dto, oauthId, provider);
+        auditLogService.log("ACCOUNT_CREATION_SOCIAL", email, null, "Provider: " + provider + ", Role: " + role, httpRequest.getRemoteAddr());
         authenticateUser(email, role.name(), httpRequest, httpResponse);
 
         User user = userRepository.findByEmailIgnoreCase(email).orElseThrow();
