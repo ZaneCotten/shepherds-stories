@@ -56,5 +56,8 @@ public class User {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
+    @Column(name = "profile_picture_key")
+    private String profilePictureKey;
+
 
 }

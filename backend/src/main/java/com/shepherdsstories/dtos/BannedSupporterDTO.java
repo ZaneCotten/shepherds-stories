@@ -5,18 +5,17 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MissionaryProfileDTO {
+public class BannedSupporterDTO {
     private UUID id;
-    private String missionaryName;
-    private String locationRegion;
-    private String biography;
-    private String referenceNumber;
-    private Boolean isReferenceDisabled;
+    private String firstName;
+    private String lastName;
     private String profilePictureUrl;
+    private OffsetDateTime bannedAt;
 }

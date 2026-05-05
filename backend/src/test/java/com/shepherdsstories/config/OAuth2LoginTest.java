@@ -13,6 +13,8 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 
+import org.springframework.security.web.context.SecurityContextRepository;
+
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -34,7 +36,8 @@ class OAuth2LoginTest {
     void setUp() {
         userRepository = mock(UserRepository.class);
         SecurityConfig securityConfig = new SecurityConfig();
-        successHandler = securityConfig.oauth2SuccessHandler(userRepository);
+        SecurityContextRepository securityContextRepository = mock(SecurityContextRepository.class);
+        successHandler = securityConfig.oauth2SuccessHandler(userRepository, securityContextRepository);
     }
 
     @Test

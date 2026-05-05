@@ -1,20 +1,10 @@
 import React from "react";
 
 export const MissionarySignupForm = ({formData, onChange}) => {
-    const fieldStyle = {
-        width: "100%",
-        marginBottom: "12px",
-        boxSizing: "border-box",
-        padding: "12px",
-        borderRadius: "8px",
-        border: "1px solid var(--border-input)",
-        backgroundColor: "var(--bg-input)",
-        color: "var(--text-h)"
-    };
+    const inputClasses = "block w-md mb-4 px-4 py-2 rounded border border-gray-300 focus:outline-none focus:scale-105 focus:border-accent-mid-green transition-all duration-300";
 
     return (
         <>
-            <h3 style={{color: "var(--text-h)"}}>Missionary</h3>
             <input
                 type="email"
                 name="email"
@@ -22,7 +12,8 @@ export const MissionarySignupForm = ({formData, onChange}) => {
                 value={formData.email}
                 required={true}
                 onChange={onChange}
-                style={fieldStyle}
+                className={inputClasses}
+                autoFocus
             />
             <input
                 type="password"
@@ -31,7 +22,7 @@ export const MissionarySignupForm = ({formData, onChange}) => {
                 value={formData.password}
                 required={true}
                 onChange={onChange}
-                style={fieldStyle}
+                className={inputClasses}
             />
             <input
                 type="text"
@@ -40,7 +31,7 @@ export const MissionarySignupForm = ({formData, onChange}) => {
                 value={formData.displayName}
                 required={true}
                 onChange={onChange}
-                style={fieldStyle}
+                className={inputClasses}
             />
             <input
                 type="text"
@@ -48,14 +39,14 @@ export const MissionarySignupForm = ({formData, onChange}) => {
                 placeholder="Region"
                 value={formData.region}
                 onChange={onChange}
-                style={fieldStyle}
+                className={inputClasses}
             />
             <textarea
                 name="biography"
                 placeholder="Biography"
                 value={formData.biography}
                 onChange={onChange}
-                style={{...fieldStyle, minHeight: "110px"}}
+                className={`${inputClasses} resize-y h-24`}
             />
         </>
     );

@@ -5,6 +5,7 @@ import com.shepherdsstories.data.enums.Role;
 import com.shepherdsstories.data.repositories.*;
 import com.shepherdsstories.dtos.CommentDTO;
 import com.shepherdsstories.entities.*;
+import com.shepherdsstories.services.S3Service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -50,6 +52,9 @@ class CommentControllerTest {
     @Mock
     private CommentLikeRepository commentLikeRepository;
 
+    @Mock
+    private S3Service s3Service;
+
     @InjectMocks
     private CommentController controller;
 
@@ -62,6 +67,9 @@ class CommentControllerTest {
 
     @BeforeEach
     void setUp() {
+        // Mockito handles constructor injection, but we need to manually set field-injected dependencies
+        ReflectionTestUtils.setField(controller, "s3Service", s3Service);
+
         missionaryUser = new User();
         missionaryUser.setId(UUID.randomUUID());
         missionaryUser.setEmail("missionary@test.com");

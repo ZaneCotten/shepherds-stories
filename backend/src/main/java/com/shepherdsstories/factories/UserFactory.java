@@ -95,7 +95,6 @@ public class UserFactory {
         profile.setFirstName(defaultFirstName(dto.getFirstName(), dto.getEmail()));
         profile.setLastName(defaultLastName(dto.getLastName()));
         profile.setCreatedAt(OffsetDateTime.now());
-        profile.setIsVerified(false);
         return profile;
     }
 
@@ -105,7 +104,6 @@ public class UserFactory {
         profile.setFirstName(fallbackNameFromEmail(user.getEmail(), "Supporter"));
         profile.setLastName("Account");
         profile.setCreatedAt(OffsetDateTime.now());
-        profile.setIsVerified(false);
         return profile;
     }
 }

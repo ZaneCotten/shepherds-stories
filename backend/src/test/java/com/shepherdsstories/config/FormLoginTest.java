@@ -9,9 +9,12 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 
+import org.springframework.security.web.context.SecurityContextRepository;
+
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
 
 class FormLoginTest {
 
@@ -21,7 +24,8 @@ class FormLoginTest {
     @BeforeEach
     void setUp() {
         SecurityConfig securityConfig = new SecurityConfig();
-        successHandler = securityConfig.formLoginSuccessHandler();
+        SecurityContextRepository securityContextRepository = mock(SecurityContextRepository.class);
+        successHandler = securityConfig.formLoginSuccessHandler(securityContextRepository);
         failureHandler = securityConfig.formLoginFailureHandler();
     }
 

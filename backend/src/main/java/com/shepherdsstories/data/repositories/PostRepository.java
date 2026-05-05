@@ -18,9 +18,14 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
             "JOIN cr.supporter s " +
             "WHERE s.id = :supporterId " +
             "AND cr.status = :status " +
+            "AND (:missionaryId IS NULL OR a.id = :missionaryId) " +
             "ORDER BY p.createdAt DESC")
-    List<Post> findAllForSupporter(@Param("supporterId") UUID supporterId, @Param("status") RequestStatus status);
+    List<Post> findAllForSupporter(@Param("supporterId") UUID supporterId,
+                                   @Param("status") RequestStatus status,
+                                   @Param("missionaryId") UUID missionaryId);
 
     @Query("SELECT p FROM Post p JOIN FETCH p.author a WHERE a.id = :authorId ORDER BY p.createdAt DESC")
     List<Post> findAllByAuthorIdWithAuthor(@Param("authorId") UUID authorId);
+
+    List<Post> findAllByAuthorIdAndCreatedAtBetweenOrderByCreatedAtDesc(UUID authorId, java.time.OffsetDateTime start, java.time.OffsetDateTime end);
 }

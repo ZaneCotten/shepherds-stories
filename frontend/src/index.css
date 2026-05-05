@@ -1,19 +1,22 @@
-:root {
-    --text: #cbd5e1;
-    --text-h: #f8fafc;
-    --bg-deep: #020617;
-    --bg-card: #0f172a;
-    --bg-input: #111827;
-    --border: #1e293b;
-    --border-input: #334155;
-    --primary: #1d4ed8;
-    --primary-hover: #1e40af;
-    --accent: #93c5fd;
-    --code-bg: #1f2028;
-    --error: #f87171;
+@import "tailwindcss";
+@import "@heroui/styles";
 
-    --sans: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    --heading: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+:root {
+    --text: #222222;
+    --bg-deep: #FAFAFA;
+    --bg-card: #FFFFFF;
+    --bg-input: #FFFFFF;
+    --border: #BFCFBB;
+    --border-input: #BFCFBB;
+    --primary: #8EA58C;
+    --primary-hover: #738A6E;
+    --accent: #738A6E;
+    --code-bg: #F3F4F6;
+    --error: #EF4444;
+
+    --sans: system-ui, Roboto, Helvetica, Arial, sans-serif;
+    --serif: ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
+    --heading: system-ui, Roboto, Helvetica, Arial, sans-serif;
     --mono: ui-monospace, Consolas, 'Courier New', monospace;
 
     font: 18px/145% var(--sans);
@@ -28,6 +31,34 @@
 
     @media (max-width: 1024px) {
         font-size: 16px;
+    }
+}
+
+@theme {
+    --color-primary: #8EA58C;
+    --color-accent-light-green: #BFCFBB;
+    --color-accent-mid-green: #738A6E;
+    --color-accent-dark-green: #344C3D;
+    --color-black: #222222;
+    --color-white: #FAFAFA;
+
+    --text-header-1: 57px;
+    --text-header-2: 47px;
+    --text-header-3: 40px;
+    --text-header-4: 33px;
+    --text-header-5: 27px;
+    --text-header-6: 23px;
+
+    --text-body-large: 19px;
+    --text-body-medium: 16px;
+    --text-body-small: 13px;
+
+}
+
+@layer base {
+    button, a, div, span {
+        --tw-duration: 300ms;
+        transition-duration: 300ms;
     }
 }
 
@@ -47,43 +78,10 @@ body {
     box-sizing: border-box;
 }
 
-h1,
-h2 {
-    font-family: var(--heading);
-    font-weight: 500;
-    color: var(--text-h);
-}
-
-h1 {
-    font-size: 56px;
-    letter-spacing: -1.68px;
-    margin: 32px 0;
-    @media (max-width: 1024px) {
-        font-size: 36px;
-        margin: 20px 0;
-    }
-}
-
-h2 {
-    font-size: 24px;
-    line-height: 118%;
-    letter-spacing: -0.24px;
-    margin: 0 0 8px;
-    @media (max-width: 1024px) {
-        font-size: 20px;
-    }
-}
-
-p {
-    margin: 0;
-}
-
 code,
 .counter {
-    font-family: var(--mono);
     display: inline-flex;
     border-radius: 4px;
-    color: var(--text-h);
 }
 
 code {
@@ -91,4 +89,21 @@ code {
     line-height: 135%;
     padding: 4px 8px;
     background: var(--code-bg);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #e5e7eb;
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #d1d5db;
 }

@@ -17,6 +17,10 @@ public class CommentDTO {
     private UUID postId;
     private UUID userId;
     private String userName;
+    private String userProfilePictureUrl;
+    private String userRole;
+    private String userBiography;
+    private String userLocationRegion;
     private String content;
     private UUID parentCommentId;
     private OffsetDateTime createdAt;

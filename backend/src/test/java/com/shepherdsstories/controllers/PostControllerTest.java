@@ -2,6 +2,7 @@ package com.shepherdsstories.controllers;
 
 import com.shepherdsstories.data.enums.RequestStatus;
 import com.shepherdsstories.data.enums.Role;
+import com.shepherdsstories.data.repositories.MediaRepository;
 import com.shepherdsstories.data.repositories.MissionaryProfileRepository;
 import com.shepherdsstories.data.repositories.PostLikeRepository;
 import com.shepherdsstories.data.repositories.PostRepository;
@@ -13,6 +14,7 @@ import com.shepherdsstories.entities.Post;
 import com.shepherdsstories.entities.PostLike;
 import com.shepherdsstories.entities.SupporterProfile;
 import com.shepherdsstories.entities.User;
+import com.shepherdsstories.services.S3Service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,6 +51,12 @@ class PostControllerTest {
 
     @Mock
     private PostLikeRepository postLikeRepository;
+
+    @Mock
+    private MediaRepository mediaRepository;
+
+    @Mock
+    private S3Service s3Service;
 
     @InjectMocks
     private PostController controller;
@@ -138,14 +146,43 @@ class PostControllerTest {
         post.setAuthor(missionaryProfile);
         post.setCreatedAt(OffsetDateTime.now());
 
-        when(postRepository.findAllForSupporter(supporterUser.getId(), RequestStatus.APPROVED)).thenReturn(List.of(post));
+        when(postRepository.findAllForSupporter(supporterUser.getId(), RequestStatus.APPROVED, null)).thenReturn(List.of(post));
 
-        ResponseEntity<List<PostDTO>> response = controller.getFeed(supporterAuth);
+        ResponseEntity<List<PostDTO>> response = controller.getFeed(null, supporterAuth);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(1, response.getBody().size());
         assertEquals("Missionary Update", response.getBody().getFirst().getTitle());
         assertEquals("Test Missionary", response.getBody().getFirst().getAuthorName());
+    }
+
+    @Test
+    void getFeed_WithMissionaryFilter_Success() {
+        User supporterUser = new User();
+        supporterUser.setId(UUID.randomUUID());
+        supporterUser.setEmail("supporter@test.com");
+        supporterUser.setRole(Role.SUPPORTER);
+
+        Authentication supporterAuth = mock(Authentication.class);
+        when(supporterAuth.isAuthenticated()).thenReturn(true);
+        when(supporterAuth.getName()).thenReturn("supporter@test.com");
+        when(userRepository.findByEmailIgnoreCase("supporter@test.com")).thenReturn(Optional.of(supporterUser));
+
+        UUID filterId = missionaryProfile.getId();
+        Post post = new Post();
+        post.setId(UUID.randomUUID());
+        post.setTitle("Filtered Update");
+        post.setAuthor(missionaryProfile);
+        post.setCreatedAt(OffsetDateTime.now());
+
+        when(postRepository.findAllForSupporter(supporterUser.getId(), RequestStatus.APPROVED, filterId)).thenReturn(List.of(post));
+
+        ResponseEntity<List<PostDTO>> response = controller.getFeed(filterId, supporterAuth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(1, response.getBody().size());
+        assertEquals("Filtered Update", response.getBody().getFirst().getTitle());
+        verify(postRepository).findAllForSupporter(supporterUser.getId(), RequestStatus.APPROVED, filterId);
     }
 
     @Test
@@ -239,7 +276,7 @@ class PostControllerTest {
         PostLike like2 = new PostLike();
         like2.setUser(supporter2);
 
-        when(postRepository.findAllForSupporter(supporter1.getId(), RequestStatus.APPROVED)).thenReturn(List.of(post));
+        when(postRepository.findAllForSupporter(supporter1.getId(), RequestStatus.APPROVED, null)).thenReturn(List.of(post));
         when(postLikeRepository.countByPostId(post.getId())).thenReturn(2L);
         when(postLikeRepository.existsByPostIdAndUserId(post.getId(), supporter1.getId())).thenReturn(true);
 
@@ -247,7 +284,7 @@ class PostControllerTest {
         like1.setUser(supporter1);
         when(postLikeRepository.findLatestLikes(eq(post.getId()), any())).thenReturn(List.of(like1, like2));
 
-        ResponseEntity<List<PostDTO>> response = controller.getFeed(auth1);
+        ResponseEntity<List<PostDTO>> response = controller.getFeed(null, auth1);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(1, response.getBody().size());
@@ -288,7 +325,7 @@ class PostControllerTest {
         PostLike like2 = new PostLike();
         like2.setUser(supporter2);
 
-        when(postRepository.findAllForSupporter(supporter1.getId(), RequestStatus.APPROVED)).thenReturn(List.of(post));
+        when(postRepository.findAllForSupporter(supporter1.getId(), RequestStatus.APPROVED, null)).thenReturn(List.of(post));
         when(postLikeRepository.countByPostId(post.getId())).thenReturn(2L);
         when(postLikeRepository.existsByPostIdAndUserId(post.getId(), supporter1.getId())).thenReturn(true);
 
@@ -296,7 +333,7 @@ class PostControllerTest {
         when(postLikeRepository.findLatestLikes(eq(post.getId()), any())).thenReturn(List.of(like2, like1));
         when(supporterProfileRepository.findById(supporter2.getId())).thenReturn(Optional.of(profile2));
 
-        ResponseEntity<List<PostDTO>> response = controller.getFeed(auth1);
+        ResponseEntity<List<PostDTO>> response = controller.getFeed(null, auth1);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         PostDTO dto = response.getBody().getFirst();

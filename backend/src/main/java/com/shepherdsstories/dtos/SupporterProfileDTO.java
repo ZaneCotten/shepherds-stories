@@ -11,12 +11,9 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MissionaryProfileDTO {
+public class SupporterProfileDTO {
     private UUID id;
-    private String missionaryName;
-    private String locationRegion;
-    private String biography;
-    private String referenceNumber;
-    private Boolean isReferenceDisabled;
+    private String firstName;
+    private String lastName;
     private String profilePictureUrl;
 }

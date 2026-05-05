@@ -8,6 +8,7 @@ import com.shepherdsstories.dtos.CommentDTO;
 import com.shepherdsstories.entities.*;
 import com.shepherdsstories.exceptions.ResourceNotFoundException;
 import com.shepherdsstories.exceptions.UnauthenticatedException;
+import com.shepherdsstories.services.S3Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -35,6 +36,9 @@ public class CommentController {
     private final SupporterProfileRepository supporterProfileRepository;
     private final ConnectionRepository connectionRepository;
     private final CommentLikeRepository commentLikeRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private S3Service s3Service;
 
     public CommentController(CommentRepository commentRepository,
                              PostRepository postRepository,
@@ -294,11 +298,26 @@ public class CommentController {
         boolean liked = currentUser != null && commentLikeRepository.existsByCommentIdAndUserId(commentId, currentUser.getId());
         String lastLikerName = resolveLastLikerName(commentId, currentUser);
 
+        User user = comment.getUser();
+        String bio = null;
+        String region = null;
+        if (user.getRole() == Role.MISSIONARY) {
+            MissionaryProfile mp = missionaryProfileRepository.findById(user.getId()).orElse(null);
+            if (mp != null) {
+                bio = mp.getBiography();
+                region = mp.getLocationRegion();
+            }
+        }
+
         return CommentDTO.builder()
                 .id(comment.getId())
                 .postId(comment.getPost().getId())
                 .userId(comment.getUser().getId())
                 .userName(getUserName(comment.getUser()))
+                .userProfilePictureUrl(s3Service.generatePresignedUrl(comment.getUser().getProfilePictureKey()))
+                .userRole(user.getRole().name())
+                .userBiography(bio)
+                .userLocationRegion(region)
                 .content(comment.getContent())
                 .parentCommentId(comment.getParentComment() != null ? comment.getParentComment().getId() : null)
                 .createdAt(comment.getCreatedAt())
