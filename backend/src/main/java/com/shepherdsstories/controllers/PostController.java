@@ -126,8 +126,6 @@ public class PostController {
             User user = getCurrentUser(authentication);
             logger.info("Fetching feed for user: {} (ID: {}) with role: {}, missionaryId: {}", user.getEmail(), user.getId(), user.getRole(), missionaryId);
 
-            // Supporter feed: posts from missionaries the user is connected to.
-            // We assume any authenticated user can have a supporter feed if they have connections.
             List<Post> posts = postRepository.findAllForSupporter(user.getId(), RequestStatus.APPROVED, missionaryId);
             logger.info("Found {} posts for user {}", posts.size(), user.getEmail());
 
@@ -165,7 +163,6 @@ public class PostController {
             post.setContent(postDTO.getContent());
             post.setUpdatedAt(OffsetDateTime.now());
 
-            // Handle Media Updates
             updateMedia(post, postDTO.getMedia());
 
             Post updatedPost = postRepository.save(post);
@@ -198,7 +195,6 @@ public class PostController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(MESSAGE_KEY, "You are not authorized to delete this post"));
             }
 
-            // Delete associated files from S3
             post.getMedia().forEach(media -> s3Service.deleteObject(media.getS3Key()));
 
             postRepository.delete(post);
@@ -305,7 +301,6 @@ public class PostController {
                 .filter(m -> m.getId() != null)
                 .collect(Collectors.toMap(MediaDTO::getId, m -> m));
 
-        // 1. Identify and remove media not in DTO list
         List<Media> toRemove = post.getMedia().stream()
                 .filter(m -> !dtoMap.containsKey(m.getId()))
                 .toList();
@@ -320,7 +315,6 @@ public class PostController {
             post.getMedia().remove(m);
         }
 
-        // 2. Update existing and add new media
         for (MediaDTO mDto : mediaDTOs) {
             if (mDto.getId() != null) {
                 post.getMedia().stream()

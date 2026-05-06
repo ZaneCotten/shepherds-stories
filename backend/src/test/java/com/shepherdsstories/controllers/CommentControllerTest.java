@@ -67,7 +67,6 @@ class CommentControllerTest {
 
     @BeforeEach
     void setUp() {
-        // Mockito handles constructor injection, but we need to manually set field-injected dependencies
         ReflectionTestUtils.setField(controller, "s3Service", s3Service);
 
         missionaryUser = new User();
@@ -309,7 +308,6 @@ class CommentControllerTest {
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
 
-        // Attempting to update missionary's comment as a supporter
         ResponseEntity<?> response = controller.updateComment(post.getId(), commentId, updateDTO, supporterAuth);
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
@@ -407,7 +405,6 @@ class CommentControllerTest {
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
 
-        // Attempting to delete missionary's comment as a supporter who is not post author
         ResponseEntity<?> response = controller.deleteComment(post.getId(), commentId, supporterAuth);
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
@@ -426,7 +423,6 @@ class CommentControllerTest {
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
         when(commentRepository.findAllByPostIdOrderByCreatedAtAsc(post.getId())).thenReturn(List.of(comment));
 
-        // Post author (missionaryAuth) deleting a supporter's comment on their post
         ResponseEntity<?> response = controller.deleteComment(post.getId(), commentId, missionaryAuth);
 
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
@@ -456,7 +452,6 @@ class CommentControllerTest {
         when(commentRepository.findById(childId)).thenReturn(Optional.of(child));
         when(commentRepository.findAllByPostIdOrderByCreatedAtAsc(post.getId())).thenReturn(List.of(parent, child));
 
-        // Deleting the last active child of a soft-deleted parent
         ResponseEntity<?> response = controller.deleteComment(post.getId(), childId, supporterAuth);
 
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());

@@ -64,7 +64,6 @@ class MissionaryProfileControllerTest {
 
     @BeforeEach
     void setUp() {
-        // Mockito handles constructor injection, but we need to manually set field-injected dependencies
         ReflectionTestUtils.setField(controller, "commentRepository", commentRepository);
         ReflectionTestUtils.setField(controller, "postLikeRepository", postLikeRepository);
         ReflectionTestUtils.setField(controller, "commentLikeRepository", commentLikeRepository);
@@ -258,7 +257,7 @@ class MissionaryProfileControllerTest {
         ResponseEntity<?> response = controller.toggleReferenceStatus();
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(true, profile.getIsReferenceDisabled()); // Should become true because !null -> !false (auto-unboxed or handled)
+        assertEquals(true, profile.getIsReferenceDisabled());
         verify(missionaryProfileRepository).save(profile);
     }
 
@@ -291,7 +290,7 @@ class MissionaryProfileControllerTest {
         assertEquals(16, newCode.length());
         assertNotEquals("OLD_CODE", newCode);
         assertEquals(newCode, profile.getReferenceNumber());
-        assertFalse(profile.getIsReferenceDisabled()); // Should be false (enabled) after generation
+        assertFalse(profile.getIsReferenceDisabled());
 
         verify(inviteCodeRepository).deleteByMissionaryId(userId);
         verify(missionaryProfileRepository).save(profile);

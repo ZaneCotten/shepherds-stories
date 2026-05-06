@@ -71,7 +71,6 @@ const RegisterPage = ({onLogin}) => {
             <PublicHeader/>
 
             <div className="bg-white flex min-h-screen">
-                {/* Form Column */}
                 <div className="w-full p-6 bg-white rounded-lg shadow-md flex flex-col items-center justify-center">
                     <h2 className="mb-8 text-header-1 font-sans:roboto text-center text-accent-mid-green">Register</h2>
                     {error && <div className="text-red-500 mb-4">{error}</div>}

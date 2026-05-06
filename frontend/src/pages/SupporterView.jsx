@@ -108,7 +108,6 @@ export const SupporterView = () => {
             if (response.ok) {
                 const data = await response.json();
                 setSuccessMessage(data.message || "Request sent!");
-                // Refresh missionary list to include the newly connected one (if approved instantly, though usually pending)
                 const res = await fetch("/api/supporter/missionaries");
                 if (res.ok) {
                     const missionariesData = await res.json();
@@ -135,20 +134,17 @@ export const SupporterView = () => {
 
         setIsUploading(true);
         try {
-            // 1. Get upload URL
             const urlRes = await fetch(`/api/supporter/profile/picture/upload-url?contentType=${encodeURIComponent(file.type)}`, {
                 method: "POST"
             });
             const {uploadUrl, s3Key} = await urlRes.json();
 
-            // 2. Upload to S3
             await fetch(uploadUrl, {
                 method: "PUT",
                 body: file,
                 headers: {"Content-Type": file.type}
             });
 
-            // 3. Update profile with S3 key
             const updateRes = await fetch("/api/supporter/profile", {
                 method: "PUT",
                 headers: {"Content-Type": "application/json"},
@@ -218,7 +214,6 @@ export const SupporterView = () => {
                 setMissionaries(prev => prev.filter(m => m.id !== missionaryId));
                 setSuccessMessage("Missionary unfollowed successfully.");
                 setTimeout(() => setSuccessMessage(""), 3000);
-                // Also clear selected missionary if it was the one removed
                 if (selectedMissionary === missionaryId) {
                     setSelectedMissionary("");
                 }
@@ -323,7 +318,6 @@ export const SupporterView = () => {
                 </div>
 
                 <div className="w-full flex flex-col lg:flex-row-reverse gap-8 items-start">
-                    {/* Prayer Requests Side Bar - Only on Feed */}
                     {activeTab === 'feed' && (
                         <div
                             className="w-full lg:w-80 shrink-0 animate-in fade-in slide-in-from-right-4 duration-500">
@@ -370,7 +364,6 @@ export const SupporterView = () => {
                         </div>
                     )}
 
-                    {/* Main Content Areas */}
                     <div className="flex-1 w-full">
                         {activeTab === 'feed' && (
                             <div
@@ -379,7 +372,6 @@ export const SupporterView = () => {
                                     Missionary Updates
                                 </h2>
 
-                                {/* Missionary Filter */}
                                 <div className="mb-8 w-full max-w-md">
                                     <div className="relative">
                                         <select
