@@ -301,6 +301,7 @@ public class PostController {
                 .filter(m -> m.getId() != null)
                 .collect(Collectors.toMap(MediaDTO::getId, m -> m));
 
+        // 1. Identify and remove media not in DTO list
         List<Media> toRemove = post.getMedia().stream()
                 .filter(m -> !dtoMap.containsKey(m.getId()))
                 .toList();
@@ -315,6 +316,7 @@ public class PostController {
             post.getMedia().remove(m);
         }
 
+        // 2. Update existing and add new media
         for (MediaDTO mDto : mediaDTOs) {
             if (mDto.getId() != null) {
                 post.getMedia().stream()
