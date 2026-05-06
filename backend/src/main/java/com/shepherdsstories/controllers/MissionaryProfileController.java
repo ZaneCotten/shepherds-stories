@@ -116,10 +116,19 @@ public class MissionaryProfileController {
                         if (req.getSupporter() != null) {
                             supporterName = req.getSupporter().getFirstName() + " " + req.getSupporter().getLastName();
                         }
+
+                        String profilePictureUrl = "";
+                        if (req.getSupporter() != null && req.getSupporter().getUser() != null) {
+                            String url = s3Service.generatePresignedUrl(req.getSupporter().getUser().getProfilePictureKey());
+                            if (url != null) {
+                                profilePictureUrl = url;
+                            }
+                        }
+
                         return Map.of(
                                 "id", req.getId(),
                                 "supporterName", supporterName,
-                                "profilePictureUrl", (req.getSupporter() != null && req.getSupporter().getUser() != null) ? s3Service.generatePresignedUrl(req.getSupporter().getUser().getProfilePictureKey()) : "",
+                                "profilePictureUrl", profilePictureUrl,
                                 "createdAt", (Object) (req.getCreatedAt() != null ? req.getCreatedAt().toString() : "")
                         );
                     })
