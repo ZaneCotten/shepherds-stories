@@ -26,7 +26,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         OAuth2User oAuth2User = super.loadUser(userRequest);
 
-        // Get the provider name
         String clientName = userRequest.getClientRegistration().getRegistrationId();
         String email = oAuth2User.getAttribute("email");
         String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
@@ -40,16 +39,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         if (userOptional.isPresent()) {
             User user = userOptional.get();
 
-            // Make sure this user is allowed to use Google
-            // If they originally signed up with a password, then their authProvider will be null,
-            // so they can be allowed to log in with Google
             if (!"google".equalsIgnoreCase(clientName)) {
                 throw new OAuth2AuthenticationException("Invalid provider for this account");
             }
 
             authorities.add(new SimpleGrantedAuthority(user.getRole().name()));
         } else {
-            // The EMPTY role will trigger the redirect in the SuccessHandler
             authorities.add(new SimpleGrantedAuthority("EMPTY"));
         }
 

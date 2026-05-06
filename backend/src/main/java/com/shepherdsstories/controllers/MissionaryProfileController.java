@@ -369,7 +369,6 @@ public class MissionaryProfileController {
             boolean newStatus = !currentStatus;
             profile.setIsReferenceDisabled(newStatus);
 
-            // Update associated invite codes: if disabled, set isActive to false; if enabled, set isActive to true
             if (profile.getInviteCodes() != null) {
                 for (InviteCode code : profile.getInviteCodes()) {
                     if (code.getCodeString().equalsIgnoreCase(profile.getReferenceNumber())) {
@@ -397,16 +396,12 @@ public class MissionaryProfileController {
             MissionaryProfile profile = missionaryProfileRepository.findById(user.getId())
                     .orElseThrow(() -> new ResourceNotFoundException(MISSIONARY_PROFILE_NOT_FOUND));
 
-            // Generate new code
             String newCode = CodeGenerator.generateReference(ValidationConstants.REF_CODE_LENGTH);
 
-            // Update profile's main reference number
             profile.setReferenceNumber(newCode);
-            // Ensure the reference is enabled when a new code is generated
             profile.setIsReferenceDisabled(false);
             missionaryProfileRepository.save(profile);
 
-            // Delete old invite codes and create new one
             inviteCodeRepository.deleteByMissionaryId(user.getId());
 
             InviteCode inviteCode = new InviteCode();

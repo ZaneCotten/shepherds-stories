@@ -19,9 +19,8 @@ public class Application {
     }
 
     private static void loadDotenv() {
-        // Load .env variables into System properties
         Dotenv dotenv = Dotenv.configure()
-                .ignoreIfMissing() // Prevents crashing if .env is missing
+                .ignoreIfMissing()
                 .load();
 
         dotenv.entries().forEach(entry ->
@@ -30,7 +29,6 @@ public class Application {
     }
 
     private static void processDatabaseUrl() {
-        // Handle database URL (especially Render's format)
         String rawUrl = System.getenv("SPRING_DATASOURCE_URL");
         if (rawUrl == null) rawUrl = System.getenv(DATABASE_URL_KEY);
         if (rawUrl == null) rawUrl = System.getProperty("SPRING_DATASOURCE_URL");
@@ -48,7 +46,6 @@ public class Application {
 
     private static String transformUrl(String url) {
         String processedUrl = url;
-        // Convert postgres:// or postgresql:// to jdbc:postgresql://
         if (processedUrl.startsWith("postgres://")) {
             processedUrl = processedUrl.replaceFirst("postgres://", JDBC_POSTGRESQL_PREFIX);
         } else if (processedUrl.startsWith("postgresql://")) {
@@ -58,7 +55,6 @@ public class Application {
     }
 
     private static String cleanCredentials(String url) {
-        // Clean credentials if present: jdbc:postgresql://user:pass@host:port/db
         if (url.startsWith(JDBC_POSTGRESQL_PREFIX) && url.contains("@")) {
             try {
                 String content = url.substring(JDBC_POSTGRESQL_PREFIX.length());

@@ -16,5 +16,5 @@ public class UserProfileDTO {
     private String email;
     private String role;
     private String profilePictureUrl;
-    private String displayName; // Combined name based on profile type
+    private String displayName;
 }

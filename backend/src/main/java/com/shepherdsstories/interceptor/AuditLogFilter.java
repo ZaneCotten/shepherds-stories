@@ -23,10 +23,8 @@ public class AuditLogFilter implements Filter {
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        // Continue with the filter chain
         chain.doFilter(request, response);
 
-        // Perform logging after the request has been processed
         if (request instanceof HttpServletRequest httpRequest && response instanceof HttpServletResponse httpResponse) {
             handleLogging(httpRequest, httpResponse);
         }
@@ -36,19 +34,15 @@ public class AuditLogFilter implements Filter {
         String uri = httpRequest.getRequestURI();
         String method = httpRequest.getMethod();
 
-        // Only log API requests that are not auth-related (as those are logged specifically in SecurityConfig/RegistrationController)
         if (uri.startsWith("/api/") && !uri.startsWith("/api/auth/")) {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-            // We only log actions for authenticated users here.
-            // Guest actions could be logged too if needed.
             if (isAuthenticatedUser(authentication)) {
                 String email = authentication.getName();
                 UUID userId = getUserId(authentication);
                 String action = method + " " + uri;
                 String details = "Status: " + httpResponse.getStatus();
 
-                // Log mutations or notable GET actions
                 if (!method.equals("GET") || isNotableGetAction(uri)) {
                     auditLogService.log(action, email, userId, details, httpRequest.getRemoteAddr());
                 }
