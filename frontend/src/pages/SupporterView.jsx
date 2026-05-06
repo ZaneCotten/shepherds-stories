@@ -20,6 +20,7 @@ export const SupporterView = () => {
     const [selectedUserProfile, setSelectedUserProfile] = useState(null);
     const [settingsError, setSettingsError] = useState("");
     const [settingsSuccess, setSettingsSuccess] = useState("");
+    const [confirmUnfollowId, setConfirmUnfollowId] = useState(null);
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -213,8 +214,6 @@ export const SupporterView = () => {
     };
 
     const handleRemoveMissionary = async (missionaryId) => {
-        if (!window.confirm("Are you sure you want to unfollow this missionary? You will no longer see their updates.")) return;
-
         try {
             const res = await fetch(`/api/supporter/missionaries/${missionaryId}/remove`, {
                 method: 'POST'
@@ -227,13 +226,16 @@ export const SupporterView = () => {
                 if (selectedMissionary === missionaryId) {
                     setSelectedMissionary("");
                 }
+                setConfirmUnfollowId(null);
             } else {
                 const data = await res.json();
                 setError(data.message || "Failed to unfollow missionary.");
+                setConfirmUnfollowId(null);
             }
         } catch (err) {
             console.error("Error unfollowing missionary:", err);
             setError("Error unfollowing missionary.");
+            setConfirmUnfollowId(null);
         }
     };
 
@@ -556,15 +558,36 @@ export const SupporterView = () => {
                                                         {m.biography &&
                                                             <p className="text-gray-600 text-xs line-clamp-2 italic">"{m.biography}"</p>}
                                                     </div>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleRemoveMissionary(m.id);
-                                                        }}
-                                                        className="px-3 py-1.5 text-xs font-bold text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200 border border-transparent hover:border-red-100"
-                                                    >
-                                                        Unfollow
-                                                    </button>
+                                                    {confirmUnfollowId === m.id ? (
+                                                        <div
+                                                            className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200"
+                                                            onClick={(e) => e.stopPropagation()}>
+                                                            <span
+                                                                className="text-[10px] font-bold text-red-600 uppercase tracking-tight">Confirm?</span>
+                                                            <button
+                                                                onClick={() => handleRemoveMissionary(m.id)}
+                                                                className="px-2 py-1 text-[10px] font-black bg-red-500 text-white rounded hover:bg-red-600 transition-colors shadow-sm"
+                                                            >
+                                                                YES
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setConfirmUnfollowId(null)}
+                                                                className="px-2 py-1 text-[10px] font-black bg-gray-100 text-gray-500 rounded hover:bg-gray-200 transition-colors"
+                                                            >
+                                                                NO
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setConfirmUnfollowId(m.id);
+                                                            }}
+                                                            className="px-3 py-1.5 text-xs font-bold text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200 border border-transparent hover:border-red-100"
+                                                        >
+                                                            Unfollow
+                                                        </button>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
