@@ -4,6 +4,7 @@ import ConnectionRequests from "./ConnectionRequests.jsx";
 import SupporterList from "./SupporterList.jsx";
 import BannedUsers from "./BannedUsers.jsx";
 import ProfileModal from "../components/ProfileModal.jsx";
+import ChangePasswordForm from "../components/ChangePasswordForm.jsx";
 
 const ExportManager = () => {
     const [dateRange, setDateRange] = useState({
@@ -634,6 +635,8 @@ export const MissionaryDashboard = () => {
                             <p className="text-gray-600 mb-6 text-sm">Review users you have banned from connecting with
                                 you. You can unban them to allow them to request a connection again.</p>
                             <BannedUsers/>
+
+                            <ChangePasswordForm/>
 
                             <ExportManager/>
                         </div>

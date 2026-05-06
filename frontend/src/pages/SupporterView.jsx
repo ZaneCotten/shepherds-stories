@@ -2,6 +2,7 @@ import {useState, useEffect} from "react";
 import {CommentSection} from "../components/CommentSection";
 import {MediaCarousel} from "../components/MediaCarousel";
 import ProfileModal from "../components/ProfileModal.jsx";
+import ChangePasswordForm from "../components/ChangePasswordForm.jsx";
 
 export const SupporterView = () => {
     const [inviteCode, setInviteCode] = useState("");
@@ -677,6 +678,7 @@ export const SupporterView = () => {
                                             Save Profile Changes
                                         </button>
                                     </form>
+                                    <ChangePasswordForm/>
                                 </div>
                             </div>
                         )}
