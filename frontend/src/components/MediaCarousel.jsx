@@ -1,7 +1,9 @@
 import React, {useState} from "react";
+import ImageModal from "./ImageModal";
 
 export const MediaCarousel = ({media, isPreview = false}) => {
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     if (!media || media.length === 0) return null;
 
@@ -14,6 +16,9 @@ export const MediaCarousel = ({media, isPreview = false}) => {
         e.stopPropagation();
         setCurrentIndex((prev) => (prev === 0 ? media.length - 1 : prev - 1));
     };
+
+    const openModal = () => setIsModalOpen(true);
+    const closeModal = () => setIsModalOpen(false);
 
     const currentItem = media[currentIndex];
     const sanitizeMediaSrc = (url, previewMode) => {
@@ -37,18 +42,25 @@ export const MediaCarousel = ({media, isPreview = false}) => {
                     currentItem.type?.startsWith("video/") ? (
                         <video src={safeSrc} className="max-h-full"/>
                     ) : (
-                        <img src={safeSrc} className="w-full h-full object-cover" alt="preview"/>
+                        <img src={safeSrc} className="w-full h-full object-cover cursor-zoom-in" alt="preview"
+                             onClick={openModal}/>
                     )
                 ) : (
                     // Rendering for Saved S3 Keys (Live Posts)
                     currentItem.mediaType === "VIDEO" ? (
                         <video src={safeSrc} controls className="max-h-full"/>
                     ) : (
-                        <img src={safeSrc} className="w-full h-full object-cover"
-                             alt="content"/>
+                        <img src={safeSrc} className="w-full h-full object-cover cursor-zoom-in"
+                             alt="content" onClick={openModal}/>
                     )
                 )}
             </div>
+
+            <ImageModal
+                isOpen={isModalOpen}
+                onClose={closeModal}
+                imageUrl={safeSrc}
+            />
 
             {/* Navigation Arrows (Only show if more than 1 item) */}
             {media.length > 1 && (
