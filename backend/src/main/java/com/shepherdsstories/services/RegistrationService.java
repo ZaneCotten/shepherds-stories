@@ -42,22 +42,24 @@ public class RegistrationService {
     }
 
     @Transactional
-    public void register(RegistrationRequestDTO dto) {
+    public User register(RegistrationRequestDTO dto) {
         User user = userFactory.createBaseUser(dto);
         String secureHash = passwordEncoder.encode(dto.getPassword());
         user.setPasswordHash(secureHash);
         user.setAuthProvider(AuthProvider.LOCAL);
         user = userRepository.save(user);
         saveRoleProfile(dto, user);
+        return user;
     }
 
     @Transactional
-    public void registerSocial(RegistrationRequestDTO dto, String oauthId, AuthProvider authProvider) {
+    public User registerSocial(RegistrationRequestDTO dto, String oauthId, AuthProvider authProvider) {
         User user = userFactory.createBaseUser(dto);
         user.setAuthProvider(authProvider);
         user.setOauthId(oauthId);
         user = userRepository.save(user);
         saveRoleProfile(dto, user);
+        return user;
     }
 
     private void saveRoleProfile(RegistrationRequestDTO dto, User user) {

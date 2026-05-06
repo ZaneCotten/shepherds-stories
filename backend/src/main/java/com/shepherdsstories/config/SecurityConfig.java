@@ -177,11 +177,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, CustomOAuth2UserService customOAuth2UserService, CustomOidcUserService customOidcUserService, AuthenticationSuccessHandler oauth2SuccessHandler, AuthenticationSuccessHandler formLoginSuccessHandler, AuthenticationFailureHandler formLoginFailureHandler, SecurityContextRepository securityContextRepository, AuditLogService auditLogService) {
         return http
-                .csrf(withDefaults())
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/oauth2/**"))
                 .cors(withDefaults())
                 .securityContext(context -> context.securityContextRepository(securityContextRepository))
                 .authorizeHttpRequests(auth -> {
-                    auth.requestMatchers("/api/auth/**", "/oauth2/**").permitAll();
+                    auth.requestMatchers("/api/auth/**", "/oauth2/**", "/error").permitAll();
                     auth.requestMatchers("/api/missionary/**").hasAuthority("MISSIONARY");
                     auth.requestMatchers("/api/supporter/**").hasAnyAuthority("SUPPORTER", "MISSIONARY");
                     auth.anyRequest().authenticated();

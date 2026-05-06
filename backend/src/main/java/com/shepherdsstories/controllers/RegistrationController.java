@@ -80,11 +80,10 @@ public class RegistrationController {
             return ResponseEntity.badRequest().body(java.util.Map.of(ERROR_KEY, USER_ALREADY_EXISTS));
         }
 
-        registrationService.register(request);
+        User user = registrationService.register(request);
         auditLogService.log("ACCOUNT_CREATION", request.getEmail(), null, "Role: " + request.getRole(), httpRequest.getRemoteAddr());
         authenticateUser(request.getEmail(), request.getRole().name(), httpRequest, httpResponse);
 
-        User user = userRepository.findByEmailIgnoreCase(normalizedEmail).orElseThrow();
         return ResponseEntity.ok(java.util.Map.of(
                 "message", "User registered successfully",
                 "id", user.getId(),
@@ -154,11 +153,10 @@ public class RegistrationController {
         dto.setFirstName(givenName);
         dto.setLastName(familyName);
 
-        registrationService.registerSocial(dto, oauthId, provider);
+        User user = registrationService.registerSocial(dto, oauthId, provider);
         auditLogService.log("ACCOUNT_CREATION_SOCIAL", email, null, "Provider: " + provider + ", Role: " + role, httpRequest.getRemoteAddr());
         authenticateUser(email, role.name(), httpRequest, httpResponse);
 
-        User user = userRepository.findByEmailIgnoreCase(email).orElseThrow();
         return ResponseEntity.ok(java.util.Map.of(
                 "message", "User registered successfully",
                 "id", user.getId(),
