@@ -4,6 +4,7 @@ import axios from "axios";
 import MissionarySignupForm from "../components/MissionarySignupForm.jsx";
 import SupporterSignupForm from "../components/SupporterSignupForm.jsx";
 import PublicHeader from "../components/PublicHeader.jsx";
+import {validatePassword} from "../utils/passwordValidator";
 
 const RegisterPage = ({onLogin}) => {
     const [formData, setFormData] = useState({
@@ -19,6 +20,7 @@ const RegisterPage = ({onLogin}) => {
 
     const navigate = useNavigate();
     const [error, setError] = useState("");
+    const [passwordError, setPasswordError] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
     const handleChange = (e) => {
@@ -27,12 +29,22 @@ const RegisterPage = ({onLogin}) => {
             ...prev,
             [name]: value
         }));
+        if (name === "password") {
+            setPasswordError(false);
+        }
     };
 
     const handleRegister = async (e) => {
         e.preventDefault();
         setError("");
         setIsLoading(true);
+
+        if (!validatePassword(formData.password)) {
+            setPasswordError(true);
+            setError("Password does not meet the requirements");
+            setIsLoading(false);
+            return;
+        }
 
         const registrationDto = {
             email: formData.email,
@@ -59,8 +71,12 @@ const RegisterPage = ({onLogin}) => {
             onLogin(userData);
             navigate(registrationDto.role === "MISSIONARY" ? "/missionary" : "/supporter");
         } catch (err) {
-            const message = err.response?.data?.error || "Registration failed";
+            const data = err.response?.data;
+            const message = data?.error || data?.detail || data?.message || "Registration failed";
             setError(message);
+            if (message.toLowerCase().includes("password")) {
+                setPasswordError(true);
+            }
         } finally {
             setIsLoading(false);
         }
@@ -87,9 +103,11 @@ const RegisterPage = ({onLogin}) => {
                         </select>
 
                         {formData.role === "SUPPORTER" ? (
-                            <SupporterSignupForm formData={formData} onChange={handleChange}/>
+                            <SupporterSignupForm formData={formData} onChange={handleChange}
+                                                 passwordError={passwordError}/>
                         ) : (
-                            <MissionarySignupForm formData={formData} onChange={handleChange}/>
+                            <MissionarySignupForm formData={formData} onChange={handleChange}
+                                                  passwordError={passwordError}/>
                         )}
 
                         <button

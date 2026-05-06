@@ -15,7 +15,7 @@ const BannedUsers = () => {
             if (res.ok) {
                 setBannedUsers(await res.json());
             } else {
-                setError("Failed to load banned users");
+                setError("No banned users found");
             }
         } catch (err) {
             setError("Error loading banned users: " + err.message);

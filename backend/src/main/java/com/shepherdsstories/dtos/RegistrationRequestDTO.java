@@ -1,6 +1,7 @@
 package com.shepherdsstories.dtos;
 
 import com.shepherdsstories.data.enums.Role;
+import com.shepherdsstories.utils.ValidPassword;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -19,7 +20,7 @@ public class RegistrationRequestDTO {
     private String email;
 
     @NotBlank(message = "Password is required")
-    @Size(min = PASSWORD_MIN_LENGTH, max = PASSWORD_MAX_LENGTH, message = "Password must be at least 8 characters")
+    @ValidPassword
     private String password;
 
     @NotNull(message = "Role is required")

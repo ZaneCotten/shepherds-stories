@@ -1,7 +1,8 @@
 import React from "react";
 
-export const MissionarySignupForm = ({formData, onChange}) => {
+export const MissionarySignupForm = ({formData, onChange, passwordError}) => {
     const inputClasses = "block w-md mb-4 px-4 py-2 rounded border border-gray-300 focus:outline-none focus:scale-105 focus:border-accent-mid-green transition-all duration-300";
+    const passwordClasses = `block w-md mb-4 px-4 py-2 rounded border ${passwordError ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:scale-105 ${passwordError ? 'focus:border-red-500' : 'focus:border-accent-mid-green'} transition-all duration-300`;
 
     return (
         <>
@@ -22,8 +23,12 @@ export const MissionarySignupForm = ({formData, onChange}) => {
                 value={formData.password}
                 required={true}
                 onChange={onChange}
-                className={inputClasses}
+                className={passwordClasses}
             />
+            <p className={`text-xs ${passwordError ? 'text-red-500' : 'text-gray-500'} mb-4 w-md`}>
+                Password must be at least 8 characters long and contain at least 3 of:
+                lowercase, uppercase, digit, and symbol.
+            </p>
             <input
                 type="text"
                 name="displayName"

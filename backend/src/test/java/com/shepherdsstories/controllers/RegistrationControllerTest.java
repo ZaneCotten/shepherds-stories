@@ -24,8 +24,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -67,9 +66,8 @@ class RegistrationControllerTest {
         savedUser.setEmail(email);
         savedUser.setRole(Role.MISSIONARY);
 
-        when(userRepository.findByEmailIgnoreCase(email))
-                .thenReturn(Optional.empty()) // Before register
-                .thenReturn(Optional.of(savedUser)); // After register
+        when(registrationService.registerSocial(any(), anyString(), any()))
+                .thenReturn(savedUser);
 
         HttpServletRequest httpRequest = mock(HttpServletRequest.class);
         HttpServletResponse httpResponse = mock(HttpServletResponse.class);
@@ -100,9 +98,8 @@ class RegistrationControllerTest {
         savedUser.setEmail(email);
         savedUser.setRole(Role.SUPPORTER);
 
-        when(userRepository.findByEmailIgnoreCase(email))
-                .thenReturn(Optional.empty())
-                .thenReturn(Optional.of(savedUser));
+        when(registrationService.registerSocial(any(), anyString(), any()))
+                .thenReturn(savedUser);
 
         HttpServletRequest httpRequest = mock(HttpServletRequest.class);
         HttpServletResponse httpResponse = mock(HttpServletResponse.class);
@@ -209,7 +206,7 @@ class RegistrationControllerTest {
         String email = "test@example.com";
         RegistrationRequestDTO dto = new RegistrationRequestDTO();
         dto.setEmail(email);
-        dto.setPassword("password123");
+        dto.setPassword("Ab1!5678");
         dto.setRole(Role.MISSIONARY);
 
         User savedUser = new User();
@@ -217,9 +214,7 @@ class RegistrationControllerTest {
         savedUser.setEmail(email);
         savedUser.setRole(Role.MISSIONARY);
 
-        when(userRepository.findByEmailIgnoreCase(email))
-                .thenReturn(Optional.empty())
-                .thenReturn(Optional.of(savedUser));
+        when(registrationService.register(any())).thenReturn(savedUser);
 
         HttpServletRequest httpRequest = mock(HttpServletRequest.class);
         HttpServletResponse httpResponse = mock(HttpServletResponse.class);
@@ -238,7 +233,7 @@ class RegistrationControllerTest {
         String email = "supporter@example.com";
         RegistrationRequestDTO dto = new RegistrationRequestDTO();
         dto.setEmail(email);
-        dto.setPassword("password123");
+        dto.setPassword("Ab1!5678");
         dto.setRole(Role.SUPPORTER);
 
         User savedUser = new User();
@@ -246,9 +241,7 @@ class RegistrationControllerTest {
         savedUser.setEmail(email);
         savedUser.setRole(Role.SUPPORTER);
 
-        when(userRepository.findByEmailIgnoreCase(email))
-                .thenReturn(Optional.empty())
-                .thenReturn(Optional.of(savedUser));
+        when(registrationService.register(any())).thenReturn(savedUser);
 
         HttpServletRequest httpRequest = mock(HttpServletRequest.class);
         HttpServletResponse httpResponse = mock(HttpServletResponse.class);
@@ -266,7 +259,7 @@ class RegistrationControllerTest {
     void register_UserAlreadyExists_ReturnsBadRequest() {
         RegistrationRequestDTO dto = new RegistrationRequestDTO();
         dto.setEmail("existing@example.com");
-        dto.setPassword("password123");
+        dto.setPassword("Ab1!5678");
         dto.setRole(Role.MISSIONARY);
 
         when(userRepository.findByEmailIgnoreCase("existing@example.com")).thenReturn(Optional.of(new User()));
