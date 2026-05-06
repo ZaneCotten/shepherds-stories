@@ -142,6 +142,7 @@ export const MissionaryDashboard = () => {
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isUploading, setIsUploading] = useState(false);
+    const [isNavOpen, setIsNavOpen] = useState(false);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const [settingsError, setSettingsError] = useState("");
     const [settingsSuccess, setSettingsSuccess] = useState("");
@@ -282,8 +283,9 @@ export const MissionaryDashboard = () => {
     return (
         <div className="bg-linear-to-r from-white to-accent-light-green min-h-screen relative">
             <div className="max-w-7xl mx-auto px-4 py-8">
-                <div className="flex justify-between items-center mb-12 w-full max-w-2xl mx-auto">
-                    <div className="flex items-center gap-4">
+                <div
+                    className="flex flex-col sm:flex-row justify-between items-center gap-6 mb-12 w-full max-w-2xl mx-auto">
+                    <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
                         <div
                             className="relative group cursor-pointer hover:opacity-80 transition-opacity"
                             onClick={() => setActiveTab('settings')}
@@ -323,11 +325,11 @@ export const MissionaryDashboard = () => {
                             </label>
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold text-accent-dark-green hover:underline cursor-pointer"
+                            <h1 className="text-2xl sm:text-3xl font-bold text-accent-dark-green hover:underline cursor-pointer"
                                 onClick={() => setIsProfileModalOpen(true)}>
                                 {profile?.missionaryName || "Missionary Dashboard"}
                             </h1>
-                            <div className="flex flex-col gap-1">
+                            <div className="flex flex-col gap-1 items-center sm:items-start">
                                 <p className="text-accent-mid-green font-medium flex items-center gap-2">
                                     <span>📍 {profile?.locationRegion || "Global"}</span>
                                     <span className="text-gray-300">•</span>
@@ -351,8 +353,145 @@ export const MissionaryDashboard = () => {
                     </button>
                 </div>
 
+                {/* Mobile Hamburger Nav for Tabs */}
+                <div className="sm:hidden w-full max-w-2xl mx-auto mb-8 sticky top-4 z-40">
+                    <button
+                        onClick={() => setIsNavOpen(!isNavOpen)}
+                        className="w-full flex items-center justify-between px-6 py-4 bg-white/90 backdrop-blur-md border border-accent-mid-green rounded-2xl shadow-md text-accent-dark-green font-bold transition-all"
+                    >
+                        <div className="flex items-center gap-3">
+                            {[
+                                {
+                                    id: 'feed', label: 'Updates Feed', icon: (
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                                             strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                        </svg>
+                                    )
+                                },
+                                {
+                                    id: 'supporters', label: 'Supporters', icon: (
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                                             strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                            <circle cx="9" cy="7" r="4"></circle>
+                                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                        </svg>
+                                    )
+                                },
+                                {
+                                    id: 'requests', label: 'Requests', icon: (
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                                             strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                        </svg>
+                                    )
+                                },
+                                {
+                                    id: 'settings', label: 'Settings', icon: (
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                                             strokeLinecap="round" strokeLinejoin="round">
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                            <path
+                                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33 1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82 1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                                        </svg>
+                                    )
+                                }
+                            ].find(t => t.id === activeTab).icon}
+                            <span>{
+                                [
+                                    {id: 'feed', label: 'Updates Feed'},
+                                    {id: 'supporters', label: 'Supporters'},
+                                    {
+                                        id: 'requests',
+                                        label: `Requests ${requests.length > 0 ? `(${requests.length})` : ''}`
+                                    },
+                                    {id: 'settings', label: 'Settings'}
+                                ].find(t => t.id === activeTab).label
+                            }</span>
+                        </div>
+                        <svg
+                            className={`transition-transform duration-300 ${isNavOpen ? 'rotate-180' : ''}`}
+                            xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                        >
+                            <path d="m6 9 6 6 6-6"></path>
+                        </svg>
+                    </button>
+
+                    <div
+                        className={`absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-accent-mid-green/20 overflow-hidden transition-all duration-300 ${isNavOpen ? 'max-h-96 opacity-100 visible' : 'max-h-0 opacity-0 invisible'}`}>
+                        {[
+                            {
+                                id: 'feed', label: 'Updates Feed', icon: (
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                         fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                                         strokeLinejoin="round">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                    </svg>
+                                )
+                            },
+                            {
+                                id: 'supporters', label: 'Supporters', icon: (
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                         fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                                         strokeLinejoin="round">
+                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                        <circle cx="9" cy="7" r="4"></circle>
+                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                    </svg>
+                                )
+                            },
+                            {
+                                id: 'requests',
+                                label: `Requests ${requests.length > 0 ? `(${requests.length})` : ''}`,
+                                icon: (
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                         fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                                         strokeLinejoin="round">
+                                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                    </svg>
+                                )
+                            },
+                            {
+                                id: 'settings', label: 'Settings', icon: (
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                         fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                                         strokeLinejoin="round">
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                        <path
+                                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33 1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82 1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                                    </svg>
+                                )
+                            }
+                        ].map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => {
+                                    setActiveTab(tab.id);
+                                    setIsNavOpen(false);
+                                }}
+                                className={`w-full flex items-center gap-4 px-6 py-4 text-sm font-bold transition-all ${activeTab === tab.id ? 'bg-accent-light-green/30 text-accent-dark-green' : 'text-gray-500 hover:bg-gray-50'}`}
+                            >
+                                {tab.icon}
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
                 <div
-                    className="flex flex-wrap justify-center items-center gap-2 p-1 bg-gray-100/50 backdrop-blur-md rounded-2xl mb-8 border border-white/20 sticky top-4 z-40 shadow-sm w-full max-w-2xl mx-auto">
+                    className="hidden sm:flex flex-wrap justify-center items-center gap-2 p-1 bg-gray-100/50 backdrop-blur-md rounded-2xl mb-8 border border-white/20 sticky top-4 z-40 shadow-sm w-full max-w-2xl mx-auto">
                     {[
                         {
                             id: 'feed', label: 'Updates Feed', icon: (
@@ -555,7 +694,7 @@ export const MissionaryDashboard = () => {
                                 <label
                                     className="text-xs font-black text-accent-mid-green uppercase tracking-widest mb-2 block">Your
                                     Active Invite Code</label>
-                                <div className="flex items-center justify-between gap-4">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                     <div className="flex items-center gap-4">
                                         <span
                                             className="text-3xl font-mono font-black text-accent-dark-green tracking-tighter">
@@ -592,13 +731,13 @@ export const MissionaryDashboard = () => {
                                     </div>
                                     {!showConfirmNewCode ? (
                                         <button onClick={() => setShowConfirmNewCode(true)}
-                                                className="text-xs font-bold text-accent-mid-green underline hover:text-accent-dark-green">
+                                                className="text-xs font-bold text-accent-mid-green underline hover:text-accent-dark-green py-2 sm:py-0">
                                             Regenerate
                                         </button>
                                     ) : (
                                         <div
-                                            className="flex flex-col items-end gap-2 animate-in fade-in zoom-in-95 duration-200">
-                                            <p className="text-[10px] font-bold text-red-600 uppercase tracking-tight text-right leading-tight">
+                                            className="flex flex-col items-start sm:items-end gap-2 animate-in fade-in zoom-in-95 duration-200">
+                                            <p className="text-[10px] font-bold text-red-600 uppercase tracking-tight text-left sm:text-right leading-tight">
                                                 This will invalidate<br/>your current code.
                                             </p>
                                             <div className="flex gap-3">
@@ -616,14 +755,15 @@ export const MissionaryDashboard = () => {
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-between p-4 rounded-xl border border-gray-100">
+                            <div
+                                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-gray-100">
                                 <div>
                                     <h4 className="font-bold text-accent-dark-green">Code Status</h4>
                                     <p className="text-sm text-gray-500">{profile?.isReferenceDisabled ? "Inactive" : "Visible and active"}</p>
                                 </div>
                                 <button
                                     onClick={toggleReference}
-                                    className={`px-6 py-2 rounded-lg font-bold hover:bg-accent-light-green transition-all duration-300 ${profile?.isReferenceDisabled ? 'bg-accent-mid-green text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                    className={`w-full sm:w-auto px-6 py-2 rounded-lg font-bold hover:bg-accent-light-green transition-all duration-300 ${profile?.isReferenceDisabled ? 'bg-accent-mid-green text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                                 >
                                     {profile?.isReferenceDisabled ? "Enable Code" : "Disable Code"}
                                 </button>

@@ -8,9 +8,10 @@ const AboutPage = () => {
 
             <div className="bg-white flex min-h-screen">
                 {/* Main Content Column */}
-                <div className="w-full p-12 flex flex-col items-center justify-center">
-                    <h2 className="mb-8 text-header-1 font-sans:roboto text-accent-mid-green">About Shepherds'
-                        Stories</h2>
+                <div className="w-full p-6 sm:p-12 flex flex-col items-center justify-center">
+                    <h2 className="mb-8 text-header-3 sm:text-header-1 font-sans:roboto text-accent-mid-green text-center leading-tight">
+                        About Shepherds' Stories
+                    </h2>
 
                     <div className="max-w-lg text-gray-700 space-y-6">
                         <p>

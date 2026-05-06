@@ -54,7 +54,7 @@ const BannedUsers = () => {
         <div className="space-y-4">
             {bannedUsers.map(user => (
                 <div key={user.id}
-                     className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
+                     className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-white border border-gray-100 rounded-xl shadow-sm">
                     <div className="flex items-center gap-4 cursor-pointer group" onClick={() => setSelectedUser(user)}>
                         <div
                             className="w-12 h-12 rounded-full overflow-hidden border border-gray-200 bg-gray-50 group-hover:opacity-80 transition-opacity">
@@ -82,7 +82,7 @@ const BannedUsers = () => {
                     <button
                         onClick={() => handleUnban(user.id)}
                         disabled={unbanningId === user.id}
-                        className="px-4 py-2 text-xs font-bold text-accent-mid-green border border-accent-mid-green rounded-lg hover:bg-accent-light-green transition-colors disabled:opacity-50"
+                        className="w-full sm:w-auto px-4 py-2 text-xs font-bold text-accent-mid-green border border-accent-mid-green rounded-lg hover:bg-accent-light-green transition-colors disabled:opacity-50"
                     >
                         {unbanningId === user.id ? "Unbanning..." : "Unban"}
                     </button>

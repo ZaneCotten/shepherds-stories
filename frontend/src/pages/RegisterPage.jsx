@@ -85,17 +85,18 @@ const RegisterPage = ({onLogin}) => {
         <>
             <PublicHeader/>
 
-            <div className="bg-white flex min-h-screen">
-                <div className="w-full p-6 bg-white rounded-lg shadow-md flex flex-col items-center justify-center">
-                    <h2 className="mb-8 text-header-1 font-sans:roboto text-center text-accent-mid-green">Register</h2>
-                    {error && <div className="text-red-500 mb-4">{error}</div>}
+            <div className="bg-white flex flex-col md:flex-row min-h-screen">
+                <div
+                    className="w-full md:w-1/2 p-6 md:p-12 bg-white rounded-lg shadow-md flex flex-col items-center justify-center">
+                    <h2 className="mb-8 text-header-3 sm:text-header-1 font-sans:roboto text-center text-accent-mid-green leading-tight">Register</h2>
+                    {error && <div className="text-red-500 mb-4 text-center max-w-md">{error}</div>}
 
                     <form onSubmit={handleRegister} className="flex flex-col items-center w-full">
                         <select
                             name="role"
                             value={formData.role}
                             onChange={handleChange}
-                            className="block w-md mb-4 px-4 py-2 rounded border border-gray-300 focus:outline-none focus:scale-105 focus:border-accent-mid-green hover:cursor-pointer hover:bg-gray-100 transition-all duration-300"
+                            className="block w-full max-w-md mb-4 px-4 py-2 rounded border border-gray-300 focus:outline-none focus:scale-105 focus:border-accent-mid-green hover:cursor-pointer hover:bg-gray-100 transition-all duration-300"
                         >
                             <option value="SUPPORTER">Supporter</option>
                             <option value="MISSIONARY">Missionary</option>
@@ -112,7 +113,7 @@ const RegisterPage = ({onLogin}) => {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-1/5 mt-4 px-4 py-2.5 rounded bg-accent-mid-green text-white hover:bg-accent-light-green hover:scale-105 hover:cursor-pointer drop-shadow-md transition-all duration-300"
+                            className="w-full max-w-md mt-4 px-4 py-2.5 rounded bg-accent-mid-green text-white hover:bg-accent-light-green hover:scale-105 hover:cursor-pointer drop-shadow-md transition-all duration-300"
                         >
                             {isLoading ? "Registering..." : "Register"}
                         </button>
@@ -124,7 +125,7 @@ const RegisterPage = ({onLogin}) => {
                                 const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
                                 window.location.href = `${backendUrl}/oauth2/authorization/google`;
                             }}
-                            className="drop-shadow-md inline-flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 bg-white border border-gray-300 shadow-sm hover:bg-gray-100 hover:cursor-pointer hover:scale-105 transition-all duration-300"
+                            className="drop-shadow-md flex w-full max-w-md items-center justify-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 bg-white border border-gray-300 shadow-sm hover:bg-gray-100 hover:cursor-pointer hover:scale-105 transition-all duration-300"
                         >
                             <img className="h-5 w-5" src="https://authjs.dev/img/providers/google.svg"
                                  alt="Google Logo"/>
@@ -132,12 +133,12 @@ const RegisterPage = ({onLogin}) => {
                         </button>
                     </div>
 
-                    <hr className="border w-full max-w-1/2 border-gray-300"/>
-                    <div className="my-4">
-                        <h5 className="inline px-4">Already have an account?</h5>
+                    <hr className="border w-full max-w-md border-gray-300"/>
+                    <div className="my-4 flex flex-col items-center justify-center sm:flex-row sm:gap-2 text-center">
+                        <h5 className="text-gray-600">Already have an account?</h5>
                         <Link
                             to="/login"
-                            className="inline-flex text-accent-mid-green hover:text-accent-light-green hover:scale-105 transition-all duration-300"
+                            className="text-accent-mid-green hover:text-accent-light-green hover:scale-105 transition-all duration-300"
                         >
                             <strong>Log in</strong>
                         </Link>
@@ -145,7 +146,7 @@ const RegisterPage = ({onLogin}) => {
                 </div>
 
 
-                <div className="w-full max-w-md bg-accent-dark-green">
+                <div className="w-full md:w-1/2 bg-accent-dark-green flex-1">
                     <div className="flex flex-col items-center justify-center h-full">
                         <NavLink to="https://www.biblegateway.com/passage/?search=ephesians%206&version=ESV">
                             <blockquote className="text-left text-white text-lg font-serif italic p-12">
