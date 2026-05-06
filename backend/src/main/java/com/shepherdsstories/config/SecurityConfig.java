@@ -187,7 +187,6 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Allow local development and production frontend
         configuration.setAllowedOrigins(List.of(frontendUrl, "https://shepherds-stories.vercel.app"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type"));
@@ -248,11 +247,11 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new Argon2PasswordEncoder(
-                16,    // salt length in bytes
-                32,    // hash length in bytes
-                1,     // parallelism (threads)
-                16384, // memory cost in KiB (16 MB)
-                2      // iterations
+                16,
+                32,
+                1,
+                16384,
+                2
         );
     }
 }

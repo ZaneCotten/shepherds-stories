@@ -69,14 +69,13 @@ public class UserFactory {
 
     public MissionaryProfile createMissionary(User user, RegistrationRequestDTO dto, String referenceNumber) {
         MissionaryProfile profile = new MissionaryProfile();
-        profile.setUser(user); // Ties the UUIDs together via @MapsId
+        profile.setUser(user);
         profile.setMissionaryName(defaultMissionaryName(dto.getDisplayName(), dto.getEmail()));
         profile.setLocationRegion(dto.getRegion());
         profile.setBiography(dto.getBiography());
         profile.setCreatedAt(OffsetDateTime.now());
         profile.setIsReferenceDisabled(false);
         profile.setReferenceNumber(referenceNumber);
-        // The unique reference number is also stored in a separate InviteCode entity.
         return profile;
     }
 

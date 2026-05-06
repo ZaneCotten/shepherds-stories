@@ -9,7 +9,6 @@ public class CodeGenerator {
     private CodeGenerator() {
     }
 
-    // Generates a random alphanumeric string for missionary reference codes
     public static String generateReference(int length) {
         StringBuilder sb = new StringBuilder(length);
         for (int i = 0; i < length; i++) {

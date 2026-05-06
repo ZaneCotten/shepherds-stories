@@ -13,8 +13,6 @@ import static com.shepherdsstories.utils.ValidationConstants.PASSWORD_MIN_LENGTH
 
 @Data
 public class RegistrationRequestDTO {
-
-    // --- Core User Fields ---
     @NotBlank(message = "Email is required")
     @Email(message = "Invalid email format")
     private String email;
@@ -26,13 +24,9 @@ public class RegistrationRequestDTO {
     @NotNull(message = "Role is required")
     private Role role;
 
-    // --- Supporter-Specific Fields ---
-    // (Required if role is SUPPORTER)
     private String firstName;
     private String lastName;
 
-    // --- Missionary-Specific Fields ---
-    // (Required if role is MISSIONARY)
     private String displayName;
     private String region;
     private String biography;
