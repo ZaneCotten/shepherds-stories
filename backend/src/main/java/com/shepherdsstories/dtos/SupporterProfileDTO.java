@@ -1,19 +1,18 @@
 package com.shepherdsstories.dtos;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-
-import java.util.UUID;
+import lombok.experimental.SuperBuilder;
 
 @Data
-@Builder
+@SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SupporterProfileDTO {
-    private UUID id;
+@EqualsAndHashCode(callSuper = true)
+public class SupporterProfileDTO extends UserProfileDTO {
     private String firstName;
     private String lastName;
-    private String profilePictureUrl;
+    private Boolean isVerified;
 }

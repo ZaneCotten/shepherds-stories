@@ -1,22 +1,20 @@
 package com.shepherdsstories.dtos;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-
-import java.util.UUID;
+import lombok.experimental.SuperBuilder;
 
 @Data
-@Builder
+@SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MissionaryProfileDTO {
-    private UUID id;
+@EqualsAndHashCode(callSuper = true)
+public class MissionaryProfileDTO extends UserProfileDTO {
     private String missionaryName;
     private String locationRegion;
     private String biography;
     private String referenceNumber;
     private Boolean isReferenceDisabled;
-    private String profilePictureUrl;
 }

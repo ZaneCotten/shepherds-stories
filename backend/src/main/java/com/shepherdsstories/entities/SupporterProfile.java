@@ -3,6 +3,7 @@ package com.shepherdsstories.entities;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
@@ -34,6 +35,10 @@ public class SupporterProfile {
 
     @Column(name = "last_name", nullable = false, length = NAME_MAX_LENGTH)
     private String lastName;
+
+    @ColumnDefault("false")
+    @Column(nullable = false)
+    private Boolean isVerified = false;
 
 
     @Column(name = "created_at")
