@@ -363,9 +363,6 @@ public class MissionaryProfileController {
             // Update associated invite codes: if disabled, set isActive to false; if enabled, set isActive to true
             if (profile.getInviteCodes() != null) {
                 for (InviteCode code : profile.getInviteCodes()) {
-                    // We only want to enable the current reference code if it was the one disabled
-                    // But the requirement says "when enabled/disabled", let's assume it applies to all or the current one.
-                    // Usually, only one should be active anyway.
                     if (code.getCodeString().equalsIgnoreCase(profile.getReferenceNumber())) {
                         code.setIsActive(!newStatus);
                     }

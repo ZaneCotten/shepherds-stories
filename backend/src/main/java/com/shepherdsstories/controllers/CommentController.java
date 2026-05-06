@@ -66,7 +66,6 @@ public class CommentController {
             Post post = postRepository.findById(postId)
                     .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
 
-            // Access check: Supporters must be connected to the missionary who wrote the post
             if (user.getRole() == Role.SUPPORTER) {
                 boolean connected = connectionRepository.existsByMissionaryIdAndSupporterIdAndStatus(post.getAuthor().getId(), user.getId(), RequestStatus.APPROVED);
                 if (!connected) {

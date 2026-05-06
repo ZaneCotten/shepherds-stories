@@ -281,7 +281,6 @@ export const MissionaryDashboard = () => {
     return (
         <div className="bg-linear-to-r from-white to-accent-light-green min-h-screen relative">
             <div className="max-w-7xl mx-auto px-4 py-8">
-                {/* Header */}
                 <div className="flex justify-between items-center mb-12 w-full max-w-2xl mx-auto">
                     <div className="flex items-center gap-4">
                         <div
@@ -351,7 +350,6 @@ export const MissionaryDashboard = () => {
                     </button>
                 </div>
 
-                {/* Tabs */}
                 <div
                     className="flex flex-wrap justify-center items-center gap-2 p-1 bg-gray-100/50 backdrop-blur-md rounded-2xl mb-8 border border-white/20 sticky top-4 z-40 shadow-sm w-full max-w-2xl mx-auto">
                     {[
@@ -416,7 +414,6 @@ export const MissionaryDashboard = () => {
                     ))}
                 </div>
 
-                {/* Content */}
                 <div className="flex flex-col items-center">
                     {activeTab === 'feed' && <PostFeed posts={posts} setPosts={setPosts}/>}
                     {activeTab === 'requests' && <ConnectionRequests requests={requests} setRequests={setRequests}/>}

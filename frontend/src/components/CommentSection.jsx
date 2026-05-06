@@ -145,7 +145,6 @@ export const CommentSection = ({postId, postAuthorId}) => {
                         )}
                     </div>
                     <div className="flex flex-col max-w-[90%]">
-                        {/* Comment Bubble */}
                         <div className="bg-gray-100 px-3 py-2 rounded-2xl relative">
                             <div
                                 className="font-bold text-accent-dark-green text-body-small hover:underline cursor-pointer"
@@ -176,7 +175,6 @@ export const CommentSection = ({postId, postAuthorId}) => {
                                 </p>
                             )}
 
-                            {/* Floating Like Count */}
                             {comment.likeCount > 0 && (
                                 <div
                                     className="absolute -right-2 -bottom-2 bg-white shadow-sm border border-gray-100 rounded-full px-1.5 py-0.5 flex items-center gap-1">
@@ -186,7 +184,6 @@ export const CommentSection = ({postId, postAuthorId}) => {
                             )}
                         </div>
 
-                        {/* Action Row */}
                         {!comment.isDeleted && !isEditing && (
                             <div className="flex items-center gap-3 px-3 mt-0.5">
                                 <button onClick={() => handleToggleLike(comment.id)}
@@ -260,7 +257,6 @@ export const CommentSection = ({postId, postAuthorId}) => {
                     {error && <p className="text-red-500 text-xs font-bold">{error}</p>}
                     {rootComments.map(comment => renderComment(comment))}
 
-                    {/* New Comment Input */}
                     <form onSubmit={handleSubmit} className="mt-4 flex items-center gap-2">
                         <input
                             type="text"
