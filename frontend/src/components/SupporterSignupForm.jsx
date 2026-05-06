@@ -1,20 +1,13 @@
 import React from "react";
 
-export const SupporterSignupForm = ({formData, onChange}) => {
-    const fieldStyle = {
-        width: "100%",
-        marginBottom: "12px",
-        boxSizing: "border-box",
-        padding: "12px",
-        borderRadius: "8px",
-        border: "1px solid var(--border-input)",
-        backgroundColor: "var(--bg-input)",
-        color: "var(--text-h)"
-    };
+export const SupporterSignupForm = ({formData, onChange, passwordError}) => {
+    const inputClasses = "block w-md mb-4 px-4 py-2 rounded border border-gray-300 focus:outline-none focus:scale-105 focus:border-accent-mid-green transition-all duration-300";
+    const passwordClasses = `block w-md mb-4 px-4 py-2 rounded border ${passwordError ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:scale-105 ${passwordError ? 'focus:border-red-500' : 'focus:border-accent-mid-green'} transition-all duration-300`;
+
 
     return (
         <>
-            <h3 style={{color: "var(--text-h)"}}>Supporter</h3>
+            <h3 className="text-h">Supporter</h3>
             <input
                 type="text"
                 name="firstName"
@@ -22,7 +15,8 @@ export const SupporterSignupForm = ({formData, onChange}) => {
                 value={formData.firstName}
                 required={true}
                 onChange={onChange}
-                style={fieldStyle}
+                className={inputClasses}
+                autoFocus
             />
             <input
                 type="text"
@@ -31,7 +25,7 @@ export const SupporterSignupForm = ({formData, onChange}) => {
                 value={formData.lastName}
                 required={true}
                 onChange={onChange}
-                style={fieldStyle}
+                className={inputClasses}
             />
             <input
                 type="email"
@@ -40,7 +34,7 @@ export const SupporterSignupForm = ({formData, onChange}) => {
                 value={formData.email}
                 required={true}
                 onChange={onChange}
-                style={fieldStyle}
+                className={inputClasses}
             />
             <input
                 type="password"
@@ -49,8 +43,12 @@ export const SupporterSignupForm = ({formData, onChange}) => {
                 value={formData.password}
                 required={true}
                 onChange={onChange}
-                style={fieldStyle}
+                className={passwordClasses}
             />
+            <p className={`text-xs ${passwordError ? 'text-red-500' : 'text-gray-500'} mb-4 w-md`}>
+                Password must be at least 8 characters long and contain at least 3 of:
+                lowercase, uppercase, digit, and symbol.
+            </p>
         </>
     );
 };

@@ -2,31 +2,50 @@ package com.shepherdsstories.config;
 
 import com.shepherdsstories.data.repositories.UserRepository;
 import com.shepherdsstories.entities.User;
+import com.shepherdsstories.services.AuditLogService;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.context.DelegatingSecurityContextRepository;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
+@EnableWebSecurity
 public class SecurityConfig {
+    private static final String APPLICATION_JSON = "application/json";
+    private static final String EMAIL_LITERAL = "email";
+
+    @Value("${FRONTEND_URL:http://localhost:5173}")
+    private String frontendUrl = "http://localhost:5173";
+
     private static String successBody(Authentication authentication) {
         String username = authentication.getName();
         String id = "";
@@ -83,64 +102,76 @@ public class SecurityConfig {
     }
 
     @Bean
-    public org.springframework.security.web.authentication.AuthenticationSuccessHandler oauth2SuccessHandler(UserRepository userRepository) {
-        return (_, response, authentication) -> {
+    public AuthenticationSuccessHandler oauth2SuccessHandler(UserRepository userRepository, SecurityContextRepository securityContextRepository, AuditLogService auditLogService) {
+        return (request, response, authentication) -> {
             OAuth2AuthenticationToken authToken = (OAuth2AuthenticationToken) authentication;
             String provider = authToken.getAuthorizedClientRegistrationId().toUpperCase();
             String email = firstNonBlank(
-                    asString(authToken, "email"),
+                    asString(authToken, EMAIL_LITERAL),
                     authentication.getName()
             );
             String normalizedEmail = normalizeEmail(email);
 
             if (normalizedEmail.isBlank()) {
-                response.sendRedirect("http://localhost:5173/login");
+                response.sendRedirect(frontendUrl + "/login");
                 return;
             }
 
             String name = asString(authToken, "name");
             String givenName = asString(authToken, "given_name");
             String familyName = asString(authToken, "family_name");
-            String picture = asString(authToken, "picture");
             String oauthId = provider + ":" + normalizedEmail;
 
             Optional<User> userOptional = userRepository.findByEmailIgnoreCase(normalizedEmail)
                     .or(() -> userRepository.findByOauthId(oauthId));
             if (userOptional.isEmpty()) {
+                auditLogService.log("LOGIN_OAUTH2_NEW_USER", normalizedEmail, null, "Provider: " + provider + " - Redirecting to role selection", request.getRemoteAddr());
                 String url = String.format(
-                        "http://localhost:5173/register/select-role?email=%s&provider=%s&name=%s&given_name=%s&family_name=%s&picture=%s",
+                        "%s/register/select-role?email=%s&provider=%s&name=%s&given_name=%s&family_name=%s",
+                        frontendUrl,
                         encode(normalizedEmail),
                         encode(provider),
                         encode(nullSafe(name)),
                         encode(nullSafe(givenName)),
-                        encode(nullSafe(familyName)),
-                        encode(nullSafe(picture))
+                        encode(nullSafe(familyName))
                 );
                 response.sendRedirect(url);
             } else {
                 User user = userOptional.get();
+                auditLogService.log("LOGIN_OAUTH2", normalizedEmail, user.getId(), "Provider: " + provider, request.getRemoteAddr());
                 String role = user.getRole().name();
-                String url = String.format("http://localhost:5173/oauth/callback?username=%s&role=%s&id=%s",
-                        encode(normalizedEmail), encode(role), encode(user.getId().toString()));
+                String url = String.format("%s/oauth/callback?username=%s&role=%s&id=%s",
+                        frontendUrl, encode(normalizedEmail), encode(role), encode(user.getId().toString()));
+                SecurityContext context = SecurityContextHolder.getContext();
+                securityContextRepository.saveContext(context, request, response);
                 response.sendRedirect(url);
             }
         };
     }
 
     @Bean
-    public org.springframework.security.web.authentication.AuthenticationSuccessHandler formLoginSuccessHandler() {
-        return (_, response, authentication) -> {
+    public AuthenticationSuccessHandler formLoginSuccessHandler(SecurityContextRepository securityContextRepository, AuditLogService auditLogService) {
+        return (request, response, authentication) -> {
+            UUID userId = null;
+            if (authentication.getPrincipal() instanceof UserAuthConfig.AppUserDetails details) {
+                userId = details.getId();
+            }
+            auditLogService.log("LOGIN", authentication.getName(), userId, "Success", request.getRemoteAddr());
+            SecurityContext context = SecurityContextHolder.getContext();
+            securityContextRepository.saveContext(context, request, response);
             response.setStatus(HttpServletResponse.SC_OK);
-            response.setContentType("application/json");
+            response.setContentType(APPLICATION_JSON);
             response.getWriter().write(successBody(authentication));
         };
     }
 
     @Bean
-    public org.springframework.security.web.authentication.AuthenticationFailureHandler formLoginFailureHandler() {
-        return (_, response, _) -> {
+    public AuthenticationFailureHandler formLoginFailureHandler(AuditLogService auditLogService) {
+        return (request, response, _) -> {
+            String email = request.getParameter(EMAIL_LITERAL);
+            auditLogService.log("LOGIN_FAILED", email, null, "Invalid credentials", request.getRemoteAddr());
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
+            response.setContentType(APPLICATION_JSON);
             response.getWriter().write("{\"error\":\"Invalid email or password\"}");
         };
     }
@@ -154,26 +185,57 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, CustomOAuth2UserService customOAuth2UserService, CustomOidcUserService customOidcUserService, org.springframework.security.web.authentication.AuthenticationSuccessHandler oauth2SuccessHandler, org.springframework.security.web.authentication.AuthenticationSuccessHandler formLoginSuccessHandler, org.springframework.security.web.authentication.AuthenticationFailureHandler formLoginFailureHandler, SecurityContextRepository securityContextRepository) {
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        // Allow local development and production frontend
+        configuration.setAllowedOrigins(List.of(frontendUrl, "https://shepherds-stories.vercel.app"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type"));
+        configuration.setAllowCredentials(true);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http, CustomOAuth2UserService customOAuth2UserService, CustomOidcUserService customOidcUserService, AuthenticationSuccessHandler oauth2SuccessHandler, AuthenticationSuccessHandler formLoginSuccessHandler, AuthenticationFailureHandler formLoginFailureHandler, SecurityContextRepository securityContextRepository, AuditLogService auditLogService) {
         return http
-                .csrf(AbstractHttpConfigurer::disable)
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/oauth2/**"))
                 .cors(withDefaults())
                 .securityContext(context -> context.securityContextRepository(securityContextRepository))
                 .authorizeHttpRequests(auth -> {
-                    auth.requestMatchers("/api/auth/**", "/oauth2/**").permitAll();
+                    auth.requestMatchers("/api/auth/**", "/oauth2/**", "/error").permitAll();
                     auth.requestMatchers("/api/missionary/**").hasAuthority("MISSIONARY");
                     auth.requestMatchers("/api/supporter/**").hasAnyAuthority("SUPPORTER", "MISSIONARY");
                     auth.anyRequest().authenticated();
                 })
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, _) -> {
+                            if (request.getRequestURI().startsWith("/api/")) {
+                                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                response.setContentType(APPLICATION_JSON);
+                                response.getWriter().write("{\"error\":\"Unauthorized access\"}");
+                            } else {
+                                response.sendRedirect("/login");
+                            }
+                        }))
                 .formLogin(form -> form
                         .loginProcessingUrl("/api/auth/login")
-                        .usernameParameter("email")
+                        .usernameParameter(EMAIL_LITERAL)
                         .successHandler(formLoginSuccessHandler)
                         .failureHandler(formLoginFailureHandler))
                 .logout(logout -> logout
                         .logoutUrl("/api/auth/logout")
-                        .logoutSuccessHandler((_, response, _) ->
-                                response.setStatus(HttpServletResponse.SC_OK)))
+                        .logoutSuccessHandler((request, response, authentication) -> {
+                            if (authentication != null) {
+                                UUID userId = null;
+                                if (authentication.getPrincipal() instanceof UserAuthConfig.AppUserDetails details) {
+                                    userId = details.getId();
+                                }
+                                auditLogService.log("LOGOUT", authentication.getName(), userId, "Success", request.getRemoteAddr());
+                            }
+                            response.setStatus(HttpServletResponse.SC_OK);
+                        }))
                 .oauth2Login(oauth -> oauth
                         .userInfoEndpoint(userInfo -> userInfo
                                 .userService(customOAuth2UserService)

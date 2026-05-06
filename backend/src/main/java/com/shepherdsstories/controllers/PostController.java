@@ -8,13 +8,16 @@ import com.shepherdsstories.data.repositories.PostLikeRepository;
 import com.shepherdsstories.data.repositories.PostRepository;
 import com.shepherdsstories.data.repositories.SupporterProfileRepository;
 import com.shepherdsstories.data.repositories.UserRepository;
-import com.shepherdsstories.data.repositories.MediaRepository;
 import com.shepherdsstories.dtos.MediaDTO;
 import com.shepherdsstories.dtos.PostDTO;
-import com.shepherdsstories.entities.*;
+import com.shepherdsstories.entities.User;
+import com.shepherdsstories.entities.Post;
+import com.shepherdsstories.entities.MissionaryProfile;
+import com.shepherdsstories.entities.PostLike;
+import com.shepherdsstories.entities.PostLikeId;
+import com.shepherdsstories.entities.Media;
 import com.shepherdsstories.exceptions.ResourceNotFoundException;
 import com.shepherdsstories.exceptions.UnauthenticatedException;
-import com.shepherdsstories.services.ProfileService;
 import com.shepherdsstories.services.S3Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +30,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -37,27 +40,25 @@ public class PostController {
     private static final Logger logger = LoggerFactory.getLogger(PostController.class);
     private static final String POST_NOT_FOUND = "Post not found";
 
+    private static final String MESSAGE_KEY = "message";
     private final PostRepository postRepository;
-    private final ProfileService profileService;
     private final MissionaryProfileRepository missionaryProfileRepository;
+    private final SupporterProfileRepository supporterProfileRepository;
     private final UserRepository userRepository;
     private final PostLikeRepository postLikeRepository;
-    private final MediaRepository mediaRepository;
     private final S3Service s3Service;
 
     public PostController(PostRepository postRepository,
-                          ProfileService profileService,
                           MissionaryProfileRepository missionaryProfileRepository,
+                          SupporterProfileRepository supporterProfileRepository,
                           UserRepository userRepository,
                           PostLikeRepository postLikeRepository,
-                          MediaRepository mediaRepository,
                           S3Service s3Service) {
         this.postRepository = postRepository;
-        this.profileService = profileService;
         this.missionaryProfileRepository = missionaryProfileRepository;
+        this.supporterProfileRepository = supporterProfileRepository;
         this.userRepository = userRepository;
         this.postLikeRepository = postLikeRepository;
-        this.mediaRepository = mediaRepository;
         this.s3Service = s3Service;
     }
 
@@ -120,14 +121,12 @@ public class PostController {
 
     @GetMapping("/feed")
     @Transactional(readOnly = true)
-    public ResponseEntity<List<PostDTO>> getFeed(Authentication authentication) {
+    public ResponseEntity<List<PostDTO>> getFeed(@RequestParam(required = false) UUID missionaryId, Authentication authentication) {
         try {
             User user = getCurrentUser(authentication);
-            logger.info("Fetching feed for user: {} (ID: {}) with role: {}", user.getEmail(), user.getId(), user.getRole());
+            logger.info("Fetching feed for user: {} (ID: {}) with role: {}, missionaryId: {}", user.getEmail(), user.getId(), user.getRole(), missionaryId);
 
-            // Supporter feed: posts from missionaries the user is connected to.
-            // We assume any authenticated user can have a supporter feed if they have connections.
-            List<Post> posts = postRepository.findAllForSupporter(user.getId(), RequestStatus.APPROVED);
+            List<Post> posts = postRepository.findAllForSupporter(user.getId(), RequestStatus.APPROVED, missionaryId);
             logger.info("Found {} posts for user {}", posts.size(), user.getEmail());
 
             List<PostDTO> postDTOs = posts.stream().map(p -> convertToDTO(p, user)).collect(Collectors.toList());
@@ -146,14 +145,16 @@ public class PostController {
 
     @PutMapping("/{id}")
     @Transactional
-    public ResponseEntity<PostDTO> updatePost(@PathVariable UUID id, @RequestBody PostDTO postDTO, Authentication authentication) {
+    public ResponseEntity<Object> updatePost(@PathVariable UUID id, @RequestBody PostDTO postDTO, Authentication authentication) {
         try {
+            logger.info("Updating post {} with data: {}", id, postDTO);
             User user = getCurrentUser(authentication);
             Post post = postRepository.findById(id)
                     .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND));
 
             if (!post.getAuthor().getId().equals(user.getId())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                logger.warn("User {} unauthorized to update post {}", user.getId(), id);
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(MESSAGE_KEY, "You are not authorized to edit this post"));
             }
 
             validatePostUpdate(postDTO);
@@ -162,36 +163,38 @@ public class PostController {
             post.setContent(postDTO.getContent());
             post.setUpdatedAt(OffsetDateTime.now());
 
-            // Handle Media Updates
             updateMedia(post, postDTO.getMedia());
 
             Post updatedPost = postRepository.save(post);
+            logger.info("Successfully updated post {}", id);
             return ResponseEntity.ok(convertToDTO(updatedPost, user));
-        } catch (IllegalArgumentException _) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        } catch (UnauthenticatedException _) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        } catch (ResourceNotFoundException _) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (IllegalArgumentException e) {
+            logger.warn("Validation error updating post {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(MESSAGE_KEY, e.getMessage()));
+        } catch (UnauthenticatedException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(MESSAGE_KEY, e.getMessage()));
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(MESSAGE_KEY, e.getMessage()));
         } catch (Throwable t) {
             logger.error("CRITICAL ERROR updating post", t);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            String message = t.getMessage() != null ? t.getMessage() : "An unexpected error occurred";
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(MESSAGE_KEY, "An internal error occurred: " + message));
         }
     }
 
     @DeleteMapping("/{id}")
     @Transactional
-    public ResponseEntity<Void> deletePost(@PathVariable UUID id, Authentication authentication) {
+    public ResponseEntity<Object> deletePost(@PathVariable UUID id, Authentication authentication) {
         try {
             User user = getCurrentUser(authentication);
             Post post = postRepository.findById(id)
                     .orElseThrow(() -> new ResourceNotFoundException(POST_NOT_FOUND));
 
             if (!post.getAuthor().getId().equals(user.getId())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                logger.warn("User {} unauthorized to delete post {}", user.getId(), id);
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(MESSAGE_KEY, "You are not authorized to delete this post"));
             }
 
-            // Delete associated files from S3
             post.getMedia().forEach(media -> s3Service.deleteObject(media.getS3Key()));
 
             postRepository.delete(post);
@@ -291,34 +294,46 @@ public class PostController {
 
     private void updateMedia(Post post, List<MediaDTO> mediaDTOs) {
         if (mediaDTOs == null) {
-            // If media is not even sent in the request, we don't change existing media
-            // Actually, if it's sent as null, it's safer to do nothing.
-            // But if it's sent as an empty list, it means all media should be removed.
             return;
         }
 
-        // 1. Identify media to remove
-        List<UUID> dtoMediaIds = mediaDTOs.stream()
-                .map(MediaDTO::getId)
-                .filter(Objects::nonNull)
-                .toList();
+        Map<UUID, MediaDTO> dtoMap = mediaDTOs.stream()
+                .filter(m -> m.getId() != null)
+                .collect(Collectors.toMap(MediaDTO::getId, m -> m));
 
+        // 1. Identify and remove media not in DTO list
         List<Media> toRemove = post.getMedia().stream()
-                .filter(m -> !dtoMediaIds.contains(m.getId()))
+                .filter(m -> !dtoMap.containsKey(m.getId()))
                 .toList();
 
-        // Delete from S3
-        toRemove.forEach(m -> s3Service.deleteObject(m.getS3Key()));
+        for (Media m : toRemove) {
+            logger.info("Removing media {} from post {}", m.getId(), post.getId());
+            try {
+                s3Service.deleteObject(m.getS3Key());
+            } catch (Exception e) {
+                logger.warn("Failed to delete S3 object {}: {}", m.getS3Key(), e.getMessage());
+            }
+            post.getMedia().remove(m);
+        }
 
-        // Remove from post.getMedia() - Hibernate handles the DB deletion due to orphanRemoval
-        post.getMedia().removeAll(toRemove);
-
-        // 2. Identify new media to add
-        List<MediaDTO> newMediaDTOs = mediaDTOs.stream()
-                .filter(m -> m.getId() == null)
-                .collect(Collectors.toList());
-
-        savePostMedia(post, newMediaDTOs);
+        // 2. Update existing and add new media
+        for (MediaDTO mDto : mediaDTOs) {
+            if (mDto.getId() != null) {
+                post.getMedia().stream()
+                        .filter(m -> m.getId().equals(mDto.getId()))
+                        .findFirst()
+                        .ifPresent(m -> m.setOrderNumber(mDto.getOrderNumber() != null ? mDto.getOrderNumber() : 0));
+            } else {
+                Media media = new Media();
+                media.setPost(post);
+                media.setS3Key(mDto.getS3Key());
+                media.setBucketName(s3Service.getBucketName());
+                media.setFileName(mDto.getFileName());
+                media.setMediaType(mDto.getMediaType());
+                media.setOrderNumber(mDto.getOrderNumber() != null ? mDto.getOrderNumber() : 0);
+                post.getMedia().add(media);
+            }
+        }
     }
 
     private void savePostMedia(Post post, List<MediaDTO> mediaDTOs) {
@@ -331,7 +346,6 @@ public class PostController {
             media.setFileName(mDto.getFileName());
             media.setMediaType(mDto.getMediaType());
             media.setOrderNumber(mDto.getOrderNumber() != null ? mDto.getOrderNumber() : 0);
-            mediaRepository.save(media);
             post.getMedia().add(media);
         }
     }
@@ -358,14 +372,17 @@ public class PostController {
                 .title(post.getTitle())
                 .content(post.getContent())
                 .authorId(post.getAuthor().getId())
-                .authorName(profileService.getUserDisplayName(post.getAuthor().getUser()))
+                .authorName(post.getAuthor().getMissionaryName())
+                .authorProfilePictureUrl(s3Service.generatePresignedUrl(post.getAuthor().getUser().getProfilePictureKey()))
+                .authorRole(Role.MISSIONARY.name())
+                .authorBiography(post.getAuthor().getBiography())
+                .authorLocationRegion(post.getAuthor().getLocationRegion())
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
                 .likeCount(likeCount)
                 .liked(liked)
                 .lastLikerName(lastLikerName)
                 .media(mediaDTOs)
-                .profilePictureUrl(s3Service.generatePresignedUrl(post.getAuthor().getUser().getProfilePictureKey()))
                 .build();
     }
 
@@ -380,7 +397,26 @@ public class PostController {
             return "you";
         }
 
-        return profileService.getUserDisplayName(lastLiker);
+        return getUserDisplayName(lastLiker);
+    }
+
+    private String getUserDisplayName(User user) {
+        if (user.getRole() == Role.MISSIONARY) {
+            return missionaryProfileRepository.findById(user.getId())
+                    .map(mp -> {
+                        String name = mp.getMissionaryName().trim();
+                        return name.isEmpty() ? user.getEmail() : name;
+                    })
+                    .orElse(user.getEmail());
+        } else if (user.getRole() == Role.SUPPORTER) {
+            return supporterProfileRepository.findById(user.getId())
+                    .map(sp -> {
+                        String name = (sp.getFirstName() + " " + sp.getLastName()).trim();
+                        return name.isEmpty() ? user.getEmail() : name;
+                    })
+                    .orElse(user.getEmail());
+        }
+        return user.getEmail();
     }
 
     private User getCurrentUser(Authentication authentication) {

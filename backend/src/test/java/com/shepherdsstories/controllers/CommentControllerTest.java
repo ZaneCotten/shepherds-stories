@@ -5,7 +5,6 @@ import com.shepherdsstories.data.enums.Role;
 import com.shepherdsstories.data.repositories.*;
 import com.shepherdsstories.dtos.CommentDTO;
 import com.shepherdsstories.entities.*;
-import com.shepherdsstories.services.ProfileService;
 import com.shepherdsstories.services.S3Service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +16,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -41,7 +41,10 @@ class CommentControllerTest {
     private UserRepository userRepository;
 
     @Mock
-    private ProfileService profileService;
+    private MissionaryProfileRepository missionaryProfileRepository;
+
+    @Mock
+    private SupporterProfileRepository supporterProfileRepository;
 
     @Mock
     private ConnectionRepository connectionRepository;
@@ -64,6 +67,8 @@ class CommentControllerTest {
 
     @BeforeEach
     void setUp() {
+        ReflectionTestUtils.setField(controller, "s3Service", s3Service);
+
         missionaryUser = new User();
         missionaryUser.setId(UUID.randomUUID());
         missionaryUser.setEmail("missionary@test.com");
@@ -99,12 +104,9 @@ class CommentControllerTest {
 
         lenient().when(userRepository.findByEmailIgnoreCase("missionary@test.com")).thenReturn(Optional.of(missionaryUser));
         lenient().when(userRepository.findByEmailIgnoreCase("supporter@test.com")).thenReturn(Optional.of(supporterUser));
+        lenient().when(missionaryProfileRepository.findById(missionaryUser.getId())).thenReturn(Optional.of(missionaryProfile));
+        lenient().when(supporterProfileRepository.findById(supporterUser.getId())).thenReturn(Optional.of(supporterProfile));
         lenient().when(postRepository.findById(post.getId())).thenReturn(Optional.of(post));
-
-        lenient().when(profileService.getUserName(missionaryUser)).thenReturn("Test Missionary");
-        lenient().when(profileService.getUserName(supporterUser)).thenReturn("John Doe");
-        lenient().when(profileService.getUserDisplayName(missionaryUser)).thenReturn("Test Missionary");
-        lenient().when(profileService.getUserDisplayName(supporterUser)).thenReturn("John Doe");
     }
 
     @Test
@@ -306,7 +308,6 @@ class CommentControllerTest {
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
 
-        // Attempting to update missionary's comment as a supporter
         ResponseEntity<?> response = controller.updateComment(post.getId(), commentId, updateDTO, supporterAuth);
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
@@ -404,7 +405,6 @@ class CommentControllerTest {
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
 
-        // Attempting to delete missionary's comment as a supporter who is not post author
         ResponseEntity<?> response = controller.deleteComment(post.getId(), commentId, supporterAuth);
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
@@ -423,7 +423,6 @@ class CommentControllerTest {
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
         when(commentRepository.findAllByPostIdOrderByCreatedAtAsc(post.getId())).thenReturn(List.of(comment));
 
-        // Post author (missionaryAuth) deleting a supporter's comment on their post
         ResponseEntity<?> response = controller.deleteComment(post.getId(), commentId, missionaryAuth);
 
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
@@ -453,7 +452,6 @@ class CommentControllerTest {
         when(commentRepository.findById(childId)).thenReturn(Optional.of(child));
         when(commentRepository.findAllByPostIdOrderByCreatedAtAsc(post.getId())).thenReturn(List.of(parent, child));
 
-        // Deleting the last active child of a soft-deleted parent
         ResponseEntity<?> response = controller.deleteComment(post.getId(), childId, supporterAuth);
 
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());

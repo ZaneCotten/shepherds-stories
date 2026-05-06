@@ -8,7 +8,6 @@ import com.shepherdsstories.dtos.CommentDTO;
 import com.shepherdsstories.entities.*;
 import com.shepherdsstories.exceptions.ResourceNotFoundException;
 import com.shepherdsstories.exceptions.UnauthenticatedException;
-import com.shepherdsstories.services.ProfileService;
 import com.shepherdsstories.services.S3Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,25 +32,28 @@ public class CommentController {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
-    private final ProfileService profileService;
+    private final MissionaryProfileRepository missionaryProfileRepository;
+    private final SupporterProfileRepository supporterProfileRepository;
     private final ConnectionRepository connectionRepository;
     private final CommentLikeRepository commentLikeRepository;
-    private final S3Service s3Service;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private S3Service s3Service;
 
     public CommentController(CommentRepository commentRepository,
                              PostRepository postRepository,
                              UserRepository userRepository,
-                             ProfileService profileService,
+                             MissionaryProfileRepository missionaryProfileRepository,
+                             SupporterProfileRepository supporterProfileRepository,
                              ConnectionRepository connectionRepository,
-                             CommentLikeRepository commentLikeRepository,
-                             S3Service s3Service) {
+                             CommentLikeRepository commentLikeRepository) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
-        this.profileService = profileService;
+        this.missionaryProfileRepository = missionaryProfileRepository;
+        this.supporterProfileRepository = supporterProfileRepository;
         this.connectionRepository = connectionRepository;
         this.commentLikeRepository = commentLikeRepository;
-        this.s3Service = s3Service;
     }
 
     @PostMapping
@@ -64,7 +66,6 @@ public class CommentController {
             Post post = postRepository.findById(postId)
                     .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
 
-            // Access check: Supporters must be connected to the missionary who wrote the post
             if (user.getRole() == Role.SUPPORTER) {
                 boolean connected = connectionRepository.existsByMissionaryIdAndSupporterIdAndStatus(post.getAuthor().getId(), user.getId(), RequestStatus.APPROVED);
                 if (!connected) {
@@ -296,11 +297,26 @@ public class CommentController {
         boolean liked = currentUser != null && commentLikeRepository.existsByCommentIdAndUserId(commentId, currentUser.getId());
         String lastLikerName = resolveLastLikerName(commentId, currentUser);
 
+        User user = comment.getUser();
+        String bio = null;
+        String region = null;
+        if (user.getRole() == Role.MISSIONARY) {
+            MissionaryProfile mp = missionaryProfileRepository.findById(user.getId()).orElse(null);
+            if (mp != null) {
+                bio = mp.getBiography();
+                region = mp.getLocationRegion();
+            }
+        }
+
         return CommentDTO.builder()
                 .id(comment.getId())
                 .postId(comment.getPost().getId())
                 .userId(comment.getUser().getId())
-                .userName(profileService.getUserName(comment.getUser()))
+                .userName(getUserName(comment.getUser()))
+                .userProfilePictureUrl(s3Service.generatePresignedUrl(comment.getUser().getProfilePictureKey()))
+                .userRole(user.getRole().name())
+                .userBiography(bio)
+                .userLocationRegion(region)
                 .content(comment.getContent())
                 .parentCommentId(comment.getParentComment() != null ? comment.getParentComment().getId() : null)
                 .createdAt(comment.getCreatedAt())
@@ -310,7 +326,6 @@ public class CommentController {
                 .likeCount(likeCount)
                 .liked(liked)
                 .lastLikerName(lastLikerName)
-                .profilePictureUrl(s3Service.generatePresignedUrl(comment.getUser().getProfilePictureKey()))
                 .build();
     }
 
@@ -325,7 +340,34 @@ public class CommentController {
             return "you";
         }
 
-        return profileService.getUserDisplayName(lastLike.getUser());
+        return getUserDisplayName(lastLike.getUser());
+    }
+
+    private String getUserDisplayName(User user) {
+        if (user.getRole() == Role.MISSIONARY) {
+            return missionaryProfileRepository.findById(user.getId()).filter(mp -> (mp.getMissionaryName() != null && !mp.getMissionaryName().isEmpty())).map(MissionaryProfile::getMissionaryName).orElse(user.getEmail());
+        } else if (user.getRole() == Role.SUPPORTER) {
+            return supporterProfileRepository.findById(user.getId())
+                    .map(sp -> {
+                        String name = ((sp.getFirstName() != null ? sp.getFirstName() : "") + " " + (sp.getLastName() != null ? sp.getLastName() : "")).trim();
+                        return name.isEmpty() ? user.getEmail() : name;
+                    })
+                    .orElse(user.getEmail());
+        }
+        return user.getEmail();
+    }
+
+    private String getUserName(User user) {
+        if (user.getRole() == Role.MISSIONARY) {
+            return missionaryProfileRepository.findById(user.getId())
+                    .map(MissionaryProfile::getMissionaryName)
+                    .orElse("Unknown Missionary");
+        } else if (user.getRole() == Role.SUPPORTER) {
+            return supporterProfileRepository.findById(user.getId())
+                    .map(sp -> sp.getFirstName() + " " + sp.getLastName())
+                    .orElse("Unknown Supporter");
+        }
+        return "Unknown User";
     }
 
     private User getCurrentUser(Authentication authentication) {

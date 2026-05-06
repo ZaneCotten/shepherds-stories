@@ -1,13 +1,9 @@
 package com.shepherdsstories.controllers;
 
 import com.shepherdsstories.data.enums.RequestStatus;
-import com.shepherdsstories.data.enums.Role;
-import com.shepherdsstories.data.repositories.ConnectionRepository;
-import com.shepherdsstories.data.repositories.InviteCodeRepository;
-import com.shepherdsstories.data.repositories.MissionaryProfileRepository;
-import com.shepherdsstories.data.repositories.UserRepository;
 import com.shepherdsstories.dtos.MissionaryProfileDTO;
 import com.shepherdsstories.entities.*;
+import com.shepherdsstories.services.S3Service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.OffsetDateTime;
 import java.util.*;
@@ -30,22 +27,47 @@ import static org.mockito.Mockito.*;
 class MissionaryProfileControllerTest {
 
     @Mock
-    private MissionaryProfileRepository missionaryProfileRepository;
+    private com.shepherdsstories.data.repositories.MissionaryProfileRepository missionaryProfileRepository;
 
     @Mock
-    private UserRepository userRepository;
+    private com.shepherdsstories.data.repositories.UserRepository userRepository;
 
     @Mock
-    private ConnectionRepository connectionRepository;
+    private com.shepherdsstories.data.repositories.ConnectionRepository connectionRepository;
 
     @Mock
-    private InviteCodeRepository inviteCodeRepository;
+    private com.shepherdsstories.data.repositories.InviteCodeRepository inviteCodeRepository;
 
+    @Mock
+    private com.shepherdsstories.data.repositories.SupporterProfileRepository supporterProfileRepository;
+
+    @Mock
+    private com.shepherdsstories.data.repositories.PrayerRequestRepository prayerRequestRepository;
+
+    @Mock
+    private com.shepherdsstories.data.repositories.PostRepository postRepository;
+
+    @Mock
+    private com.shepherdsstories.data.repositories.CommentRepository commentRepository;
+
+    @Mock
+    private com.shepherdsstories.data.repositories.PostLikeRepository postLikeRepository;
+
+    @Mock
+    private com.shepherdsstories.data.repositories.CommentLikeRepository commentLikeRepository;
+
+    @Mock
+    private S3Service s3Service;
+
+    @org.mockito.InjectMocks
     private MissionaryProfileController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new MissionaryProfileController(missionaryProfileRepository, userRepository, connectionRepository, inviteCodeRepository);
+        ReflectionTestUtils.setField(controller, "commentRepository", commentRepository);
+        ReflectionTestUtils.setField(controller, "postLikeRepository", postLikeRepository);
+        ReflectionTestUtils.setField(controller, "commentLikeRepository", commentLikeRepository);
+        ReflectionTestUtils.setField(controller, "s3Service", s3Service);
     }
 
     @Test
@@ -56,9 +78,8 @@ class MissionaryProfileControllerTest {
         User user = new User();
         user.setId(userId);
         user.setEmail(email);
-        user.setRole(Role.MISSIONARY);
 
-        MissionaryProfile profile = new MissionaryProfile();
+        com.shepherdsstories.entities.MissionaryProfile profile = new com.shepherdsstories.entities.MissionaryProfile();
         profile.setId(userId);
         profile.setMissionaryName("Test Missionary");
         profile.setReferenceNumber("REF1234567890ABC");
@@ -90,9 +111,8 @@ class MissionaryProfileControllerTest {
         User user = new User();
         user.setId(userId);
         user.setEmail(email);
-        user.setRole(Role.MISSIONARY);
 
-        MissionaryProfile profile = new MissionaryProfile();
+        com.shepherdsstories.entities.MissionaryProfile profile = new com.shepherdsstories.entities.MissionaryProfile();
         profile.setId(userId);
         profile.setMissionaryName("OAuth Missionary");
 
@@ -127,7 +147,7 @@ class MissionaryProfileControllerTest {
         user.setId(userId);
         user.setEmail(email);
 
-        SupporterProfile supporter = new SupporterProfile();
+        com.shepherdsstories.entities.SupporterProfile supporter = new com.shepherdsstories.entities.SupporterProfile();
         supporter.setFirstName("John");
         supporter.setLastName("Doe");
 
@@ -159,7 +179,7 @@ class MissionaryProfileControllerTest {
         user.setId(userId);
         user.setEmail(email);
 
-        MissionaryProfile profile = new MissionaryProfile();
+        com.shepherdsstories.entities.MissionaryProfile profile = new com.shepherdsstories.entities.MissionaryProfile();
         profile.setId(userId);
 
         ConnectionRequest request = new ConnectionRequest();
@@ -187,12 +207,12 @@ class MissionaryProfileControllerTest {
         user.setId(userId);
         user.setEmail(email);
 
-        MissionaryProfile profile = new MissionaryProfile();
+        com.shepherdsstories.entities.MissionaryProfile profile = new com.shepherdsstories.entities.MissionaryProfile();
         profile.setId(userId);
         profile.setIsReferenceDisabled(false);
         profile.setReferenceNumber(code);
 
-        InviteCode inviteCode = new InviteCode();
+        com.shepherdsstories.entities.InviteCode inviteCode = new com.shepherdsstories.entities.InviteCode();
         inviteCode.setMissionary(profile);
         inviteCode.setCodeString(code);
         inviteCode.setIsActive(true);
@@ -226,7 +246,7 @@ class MissionaryProfileControllerTest {
         user.setId(userId);
         user.setEmail(email);
 
-        MissionaryProfile profile = new MissionaryProfile();
+        com.shepherdsstories.entities.MissionaryProfile profile = new com.shepherdsstories.entities.MissionaryProfile();
         profile.setId(userId);
         profile.setIsReferenceDisabled(null); // Explicitly null
 
@@ -237,7 +257,7 @@ class MissionaryProfileControllerTest {
         ResponseEntity<?> response = controller.toggleReferenceStatus();
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(true, profile.getIsReferenceDisabled()); // Should become true because !null -> !false (auto-unboxed or handled)
+        assertEquals(true, profile.getIsReferenceDisabled());
         verify(missionaryProfileRepository).save(profile);
     }
 
@@ -250,7 +270,7 @@ class MissionaryProfileControllerTest {
         user.setId(userId);
         user.setEmail(email);
 
-        MissionaryProfile profile = new MissionaryProfile();
+        com.shepherdsstories.entities.MissionaryProfile profile = new com.shepherdsstories.entities.MissionaryProfile();
         profile.setId(userId);
         profile.setReferenceNumber("OLD_CODE");
         profile.setIsReferenceDisabled(true); // Start as disabled
@@ -270,11 +290,172 @@ class MissionaryProfileControllerTest {
         assertEquals(16, newCode.length());
         assertNotEquals("OLD_CODE", newCode);
         assertEquals(newCode, profile.getReferenceNumber());
-        assertFalse(profile.getIsReferenceDisabled()); // Should be false (enabled) after generation
+        assertFalse(profile.getIsReferenceDisabled());
 
         verify(inviteCodeRepository).deleteByMissionaryId(userId);
         verify(missionaryProfileRepository).save(profile);
-        verify(inviteCodeRepository).save(any(InviteCode.class));
+        verify(inviteCodeRepository).save(any(com.shepherdsstories.entities.InviteCode.class));
+    }
+
+    @Test
+    void updateProfile_Success() {
+        String email = "missionary@example.com";
+        UUID userId = UUID.randomUUID();
+        String newName = "New Missionary Name";
+
+        User user = new User();
+        user.setId(userId);
+        user.setEmail(email);
+
+        com.shepherdsstories.entities.MissionaryProfile profile = new com.shepherdsstories.entities.MissionaryProfile();
+        profile.setId(userId);
+        profile.setMissionaryName("Old Name");
+
+        MissionaryProfileDTO updateDto = new MissionaryProfileDTO();
+        updateDto.setMissionaryName(newName);
+
+        setupAuth(email);
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(missionaryProfileRepository.findById(userId)).thenReturn(Optional.of(profile));
+
+        ResponseEntity<MissionaryProfileDTO> response = controller.updateProfile(updateDto);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(newName, response.getBody().getMissionaryName());
+        assertEquals(newName, profile.getMissionaryName());
+        verify(missionaryProfileRepository).save(profile);
+    }
+
+    @Test
+    void exportCsv_Success() throws Exception {
+        String email = "missionary@example.com";
+        UUID userId = UUID.randomUUID();
+
+        User user = new User();
+        user.setId(userId);
+        user.setEmail(email);
+
+        setupAuth(email);
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+
+        jakarta.servlet.http.HttpServletResponse response = mock(jakarta.servlet.http.HttpServletResponse.class);
+        java.io.PrintWriter writer = mock(java.io.PrintWriter.class);
+        when(response.getWriter()).thenReturn(writer);
+
+        controller.exportCsv(null, null, true, true, true, true, true, false, true, true, response);
+
+        verify(response).setContentType("text/csv");
+        verify(response).setHeader(eq("Content-Disposition"), contains("attachment; filename=missionary_data_export.csv"));
+        verify(writer).println(contains("Type,Date,Title/Name,Content/Email,Status/Other,Likes"));
+
+        verify(connectionRepository).findByMissionaryIdAndStatusAndCreatedAtBetween(eq(userId), eq(RequestStatus.APPROVED), any(), any());
+        verify(prayerRequestRepository).findAllByMissionaryIdAndCreatedAtBetweenOrderByCreatedAtDesc(eq(userId), any(), any());
+        verify(postRepository).findAllByAuthorIdAndCreatedAtBetweenOrderByCreatedAtDesc(eq(userId), any(), any());
+
+        verify(connectionRepository).countByMissionaryIdAndStatusAndCreatedAtBetween(eq(userId), eq(RequestStatus.APPROVED), any(), any());
+        verify(prayerRequestRepository).countByMissionaryIdAndCreatedAtBetween(eq(userId), any(), any());
+        verify(prayerRequestRepository).countByMissionaryIdAndAnsweredTrueAndCreatedAtBetween(eq(userId), any(), any());
+    }
+
+    @Test
+    void banAndUnbanSupporter_Success() {
+        UUID missionaryId = UUID.randomUUID();
+        UUID supporterId = UUID.randomUUID();
+        String email = "missionary@example.com";
+        setupAuth(email);
+
+        User missionary = new User();
+        missionary.setId(missionaryId);
+        missionary.setEmail(email);
+
+        User supporterUser = new User();
+        supporterUser.setId(supporterId);
+
+        SupporterProfile supporterProfile = new SupporterProfile();
+        supporterProfile.setId(supporterId);
+        supporterProfile.setUser(supporterUser);
+        supporterProfile.setFirstName("John");
+        supporterProfile.setLastName("Doe");
+
+        ConnectionRequest connection = new ConnectionRequest();
+        connection.setMissionary(new MissionaryProfile());
+        connection.getMissionary().setId(missionaryId);
+        connection.setSupporter(supporterProfile);
+        connection.setStatus(RequestStatus.APPROVED);
+
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(missionary));
+        when(connectionRepository.findByMissionaryIdAndSupporterId(missionaryId, supporterId)).thenReturn(Optional.of(connection));
+        when(connectionRepository.findByMissionaryIdAndStatus(missionaryId, RequestStatus.BANNED)).thenReturn(List.of(connection));
+
+        // Ban
+        ResponseEntity<Map<String, String>> banResponse = controller.banSupporter(supporterId);
+        assertEquals(HttpStatus.OK, banResponse.getStatusCode());
+        assertEquals("Supporter banned", banResponse.getBody().get("message"));
+        assertEquals(RequestStatus.BANNED, connection.getStatus());
+
+        // Get Banned
+        ResponseEntity<List<com.shepherdsstories.dtos.BannedSupporterDTO>> bannedListResponse = controller.getBannedSupporters();
+        assertEquals(HttpStatus.OK, bannedListResponse.getStatusCode());
+        assertEquals(1, bannedListResponse.getBody().size());
+        assertEquals("John", bannedListResponse.getBody().get(0).getFirstName());
+
+        // Unban
+        ResponseEntity<Map<String, String>> unbanResponse = controller.unbanSupporter(supporterId);
+        assertEquals(HttpStatus.OK, unbanResponse.getStatusCode());
+        assertEquals("Supporter unbanned", unbanResponse.getBody().get("message"));
+        assertEquals(RequestStatus.REJECTED, connection.getStatus());
+    }
+
+    @Test
+    void unbanSupporter_NotBanned_Error() {
+        UUID missionaryId = UUID.randomUUID();
+        UUID supporterId = UUID.randomUUID();
+        String email = "missionary@example.com";
+        setupAuth(email);
+
+        User missionary = new User();
+        missionary.setId(missionaryId);
+        missionary.setEmail(email);
+
+        ConnectionRequest connection = new ConnectionRequest();
+        connection.setMissionary(new MissionaryProfile());
+        connection.getMissionary().setId(missionaryId);
+        connection.setStatus(RequestStatus.APPROVED);
+
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(missionary));
+        when(connectionRepository.findByMissionaryIdAndSupporterId(missionaryId, supporterId)).thenReturn(Optional.of(connection));
+
+        ResponseEntity<Map<String, String>> response = controller.unbanSupporter(supporterId);
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Supporter is not banned.", response.getBody().get("message"));
+    }
+
+    @Test
+    void removeSupporter_Success() {
+        String email = "missionary@example.com";
+        UUID userId = UUID.randomUUID();
+        UUID supporterId = UUID.randomUUID();
+
+        User user = new User();
+        user.setId(userId);
+        user.setEmail(email);
+
+        ConnectionRequest connection = new ConnectionRequest();
+        connection.setStatus(RequestStatus.APPROVED);
+
+        setupAuth(email);
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(connectionRepository.findByMissionaryIdAndSupporterId(userId, supporterId)).thenReturn(Optional.of(connection));
+
+        ResponseEntity<Map<String, String>> response = controller.removeSupporter(supporterId);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("Supporter removed", response.getBody().get("message"));
+        assertEquals(RequestStatus.REJECTED, connection.getStatus());
+        assertNotNull(connection.getProcessedAt());
+        assertTrue(connection.getProcessedAt().isBefore(OffsetDateTime.now().minusMinutes(1)));
+        verify(connectionRepository).save(connection);
     }
 
     private void setupAuth(String email) {

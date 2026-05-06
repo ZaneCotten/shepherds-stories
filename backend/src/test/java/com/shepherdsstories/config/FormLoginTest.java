@@ -8,10 +8,14 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import com.shepherdsstories.services.AuditLogService;
+
+import org.springframework.security.web.context.SecurityContextRepository;
 
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
 
 class FormLoginTest {
 
@@ -21,8 +25,10 @@ class FormLoginTest {
     @BeforeEach
     void setUp() {
         SecurityConfig securityConfig = new SecurityConfig();
-        successHandler = securityConfig.formLoginSuccessHandler();
-        failureHandler = securityConfig.formLoginFailureHandler();
+        SecurityContextRepository securityContextRepository = mock(SecurityContextRepository.class);
+        AuditLogService auditLogService = mock(AuditLogService.class);
+        successHandler = securityConfig.formLoginSuccessHandler(securityContextRepository, auditLogService);
+        failureHandler = securityConfig.formLoginFailureHandler(auditLogService);
     }
 
     @Test

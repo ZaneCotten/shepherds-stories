@@ -3,6 +3,7 @@ package com.shepherdsstories.config;
 import com.shepherdsstories.data.enums.Role;
 import com.shepherdsstories.data.repositories.UserRepository;
 import com.shepherdsstories.entities.User;
+import com.shepherdsstories.services.AuditLogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -12,6 +13,8 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
+
+import org.springframework.security.web.context.SecurityContextRepository;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -34,7 +37,9 @@ class OAuth2LoginTest {
     void setUp() {
         userRepository = mock(UserRepository.class);
         SecurityConfig securityConfig = new SecurityConfig();
-        successHandler = securityConfig.oauth2SuccessHandler(userRepository);
+        SecurityContextRepository securityContextRepository = mock(SecurityContextRepository.class);
+        AuditLogService auditLogService = mock(AuditLogService.class);
+        successHandler = securityConfig.oauth2SuccessHandler(userRepository, securityContextRepository, auditLogService);
     }
 
     @Test

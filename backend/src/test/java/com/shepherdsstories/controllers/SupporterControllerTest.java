@@ -2,6 +2,7 @@ package com.shepherdsstories.controllers;
 
 import com.shepherdsstories.data.enums.RequestStatus;
 import com.shepherdsstories.data.repositories.*;
+import com.shepherdsstories.services.S3Service;
 import com.shepherdsstories.entities.*;
 import com.shepherdsstories.factories.UserFactory;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.OffsetDateTime;
 import java.util.Map;
@@ -44,11 +46,19 @@ class SupporterControllerTest {
     @Mock
     private UserFactory userFactory;
 
+    @Mock
+    private PrayerRequestRepository prayerRequestRepository;
+
+    @Mock
+    private S3Service s3Service;
+
+    @org.mockito.InjectMocks
     private SupporterController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new SupporterController(missionaryProfileRepository, inviteCodeRepository, supporterProfileRepository, connectionRepository, userRepository, userFactory);
+        // Mockito handles constructor injection, but we need to manually set field-injected dependencies
+        ReflectionTestUtils.setField(controller, "s3Service", s3Service);
     }
 
     private User createMockUser(String email, UUID id) {
@@ -380,6 +390,69 @@ class SupporterControllerTest {
         ResponseEntity<Map<String, String>> response = controller.sendRequest(code, auth);
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    }
+
+    @Test
+    void removeMissionary_Success() {
+        String email = "supporter@example.com";
+        UUID userId = UUID.randomUUID();
+        User user = createMockUser(email, userId);
+        OAuth2AuthenticationToken auth = createMockAuth(email);
+        UUID missionaryId = UUID.randomUUID();
+
+        ConnectionRequest connection = new ConnectionRequest();
+        connection.setStatus(RequestStatus.APPROVED);
+
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(connectionRepository.findByMissionaryIdAndSupporterId(missionaryId, user.getId()))
+                .thenReturn(Optional.of(connection));
+
+        ResponseEntity<Map<String, String>> response = controller.removeMissionary(missionaryId, auth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("Missionary removed", response.getBody().get("message"));
+        assertEquals(RequestStatus.REJECTED, connection.getStatus());
+        assertNotNull(connection.getProcessedAt());
+        assertTrue(connection.getProcessedAt().isBefore(OffsetDateTime.now().minusMinutes(1)));
+        verify(connectionRepository).save(connection);
+    }
+
+    @Test
+    void removeMissionary_NotConnected() {
+        String email = "supporter@example.com";
+        UUID userId = UUID.randomUUID();
+        User user = createMockUser(email, userId);
+        OAuth2AuthenticationToken auth = createMockAuth(email);
+        UUID missionaryId = UUID.randomUUID();
+
+        ConnectionRequest connection = new ConnectionRequest();
+        connection.setStatus(RequestStatus.PENDING);
+
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(connectionRepository.findByMissionaryIdAndSupporterId(missionaryId, user.getId()))
+                .thenReturn(Optional.of(connection));
+
+        ResponseEntity<Map<String, String>> response = controller.removeMissionary(missionaryId, auth);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("You are not currently connected to this missionary.", response.getBody().get("message"));
+        verify(connectionRepository, never()).save(any());
+    }
+
+    @Test
+    void removeMissionary_NotFound() {
+        String email = "supporter@example.com";
+        UUID userId = UUID.randomUUID();
+        User user = createMockUser(email, userId);
+        OAuth2AuthenticationToken auth = createMockAuth(email);
+        UUID missionaryId = UUID.randomUUID();
+
+        when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(connectionRepository.findByMissionaryIdAndSupporterId(missionaryId, user.getId()))
+                .thenReturn(Optional.empty());
+
+        assertThrows(com.shepherdsstories.exceptions.ResourceNotFoundException.class, () ->
+                controller.removeMissionary(missionaryId, auth));
     }
 
     @Test

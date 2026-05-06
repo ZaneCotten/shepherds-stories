@@ -37,8 +37,9 @@ public class SupporterProfile {
     private String lastName;
 
     @ColumnDefault("false")
-    @Column(name = "is_verified")
-    private Boolean isVerified;
+    @Column(nullable = false)
+    private Boolean isVerified = false;
+
 
     @Column(name = "created_at")
     private OffsetDateTime createdAt;

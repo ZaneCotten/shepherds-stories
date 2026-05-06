@@ -19,11 +19,14 @@ public class PostDTO {
     private String content;
     private UUID authorId;
     private String authorName;
+    private String authorProfilePictureUrl;
+    private String authorRole;
+    private String authorBiography;
+    private String authorLocationRegion;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
     private Long likeCount;
     private Boolean liked;
     private String lastLikerName;
     private List<MediaDTO> media;
-    private String profilePictureUrl;
 }
