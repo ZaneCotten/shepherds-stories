@@ -17,6 +17,15 @@ public class Application {
                 System.setProperty(entry.getKey(), entry.getValue())
         );
 
+        // Handle Render's DATABASE_URL which starts with postgres://
+        String databaseUrl = System.getenv("DATABASE_URL");
+        if (databaseUrl != null && databaseUrl.startsWith("postgres://")) {
+            String jdbcUrl = databaseUrl.replace("postgres://", "jdbc:postgresql://");
+            System.setProperty("spring.datasource.url", jdbcUrl);
+            // Also set it as DATABASE_URL in system properties to satisfy ${DATABASE_URL} in application.properties
+            System.setProperty("DATABASE_URL", jdbcUrl);
+        }
+
         SpringApplication.run(Application.class, args);
     }
 
