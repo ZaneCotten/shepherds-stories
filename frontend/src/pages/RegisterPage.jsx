@@ -120,7 +120,10 @@ const RegisterPage = ({onLogin}) => {
 
                     <div className="my-4 flex flex-col items-center">
                         <button
-                            onClick={() => window.location.href = 'http://localhost:8080/oauth2/authorization/google'}
+                            onClick={() => {
+                                const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
+                                window.location.href = `${backendUrl}/oauth2/authorization/google`;
+                            }}
                             className="drop-shadow-md inline-flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 bg-white border border-gray-300 shadow-sm hover:bg-gray-100 hover:cursor-pointer hover:scale-105 transition-all duration-300"
                         >
                             <img className="h-5 w-5" src="https://authjs.dev/img/providers/google.svg"
