@@ -44,9 +44,18 @@ export const SupporterView = () => {
                 if (res.ok) {
                     const data = await res.json();
                     setMissionaries(data);
+                    // Automatically choose initial tab based on connections
+                    setActiveTab(prev => {
+                        if (prev === "dashboard") {
+                            return data.length > 0 ? "feed" : "missionaries";
+                        }
+                        return prev;
+                    });
                 }
             } catch (err) {
                 console.error("Error fetching missionaries:", err);
+                // Fallback for initial load
+                setActiveTab(prev => prev === "dashboard" ? "missionaries" : prev);
             }
         };
         fetchMissionaries();

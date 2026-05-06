@@ -40,8 +40,7 @@ const RegisterPage = ({onLogin}) => {
         setIsLoading(true);
 
         if (!validatePassword(formData.password)) {
-            setPasswordError(true);
-            setError("Password does not meet the requirements");
+            setPasswordError(true)
             setIsLoading(false);
             return;
         }
