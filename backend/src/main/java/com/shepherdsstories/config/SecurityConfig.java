@@ -4,6 +4,7 @@ import com.shepherdsstories.data.repositories.UserRepository;
 import com.shepherdsstories.entities.User;
 import com.shepherdsstories.services.AuditLogService;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -22,9 +23,14 @@ import org.springframework.security.web.context.DelegatingSecurityContextReposit
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -36,6 +42,9 @@ import static org.springframework.security.config.Customizer.withDefaults;
 public class SecurityConfig {
     private static final String APPLICATION_JSON = "application/json";
     private static final String EMAIL_LITERAL = "email";
+
+    @Value("${FRONTEND_URL:http://localhost:5173}")
+    private String frontendUrl = "http://localhost:5173";
 
     private static String successBody(Authentication authentication) {
         String username = authentication.getName();
@@ -104,7 +113,7 @@ public class SecurityConfig {
             String normalizedEmail = normalizeEmail(email);
 
             if (normalizedEmail.isBlank()) {
-                response.sendRedirect("http://localhost:5173/login");
+                response.sendRedirect(frontendUrl + "/login");
                 return;
             }
 
@@ -118,7 +127,8 @@ public class SecurityConfig {
             if (userOptional.isEmpty()) {
                 auditLogService.log("LOGIN_OAUTH2_NEW_USER", normalizedEmail, null, "Provider: " + provider + " - Redirecting to role selection", request.getRemoteAddr());
                 String url = String.format(
-                        "http://localhost:5173/register/select-role?email=%s&provider=%s&name=%s&given_name=%s&family_name=%s",
+                        "%s/register/select-role?email=%s&provider=%s&name=%s&given_name=%s&family_name=%s",
+                        frontendUrl,
                         encode(normalizedEmail),
                         encode(provider),
                         encode(nullSafe(name)),
@@ -130,8 +140,8 @@ public class SecurityConfig {
                 User user = userOptional.get();
                 auditLogService.log("LOGIN_OAUTH2", normalizedEmail, user.getId(), "Provider: " + provider, request.getRemoteAddr());
                 String role = user.getRole().name();
-                String url = String.format("http://localhost:5173/oauth/callback?username=%s&role=%s&id=%s",
-                        encode(normalizedEmail), encode(role), encode(user.getId().toString()));
+                String url = String.format("%s/oauth/callback?username=%s&role=%s&id=%s",
+                        frontendUrl, encode(normalizedEmail), encode(role), encode(user.getId().toString()));
                 SecurityContext context = SecurityContextHolder.getContext();
                 securityContextRepository.saveContext(context, request, response);
                 response.sendRedirect(url);
@@ -172,6 +182,19 @@ public class SecurityConfig {
                 new RequestAttributeSecurityContextRepository(),
                 new HttpSessionSecurityContextRepository()
         );
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        // Allow local development and production frontend
+        configuration.setAllowedOrigins(List.of(frontendUrl, "https://shepherds-stories.vercel.app"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type"));
+        configuration.setAllowCredentials(true);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     @Bean

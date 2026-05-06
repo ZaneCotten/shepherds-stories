@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://shepherds-stories-backend.onrender.com/api/:path*"
+    },
+    {
+      "source": "/oauth2/:path*",
+      "destination": "https://shepherds-stories-backend.onrender.com/oauth2/:path*"
+    }
+  ]
+}
