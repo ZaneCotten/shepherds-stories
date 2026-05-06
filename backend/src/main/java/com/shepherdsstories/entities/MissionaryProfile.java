@@ -3,6 +3,7 @@ package com.shepherdsstories.entities;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
@@ -32,6 +33,7 @@ public class MissionaryProfile {
     @Column(name = "reference_number", unique = true, nullable = false, length = REF_CODE_LENGTH)
     private String referenceNumber;
 
+    @ColumnDefault("false")
     @Column(name = "is_reference_disabled", nullable = false)
     private Boolean isReferenceDisabled = false;
 
