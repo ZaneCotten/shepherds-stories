@@ -61,7 +61,7 @@ const ChangePasswordForm = () => {
                 setError(data.error || data.message || 'Failed to change password.');
                 setShowConfirm(false);
             }
-        } catch (err) {
+        } catch {
             setError('An error occurred. Please try again.');
             setShowConfirm(false);
         } finally {
