@@ -14,6 +14,7 @@ export const SupporterView = () => {
     const [selectedMissionary, setSelectedMissionary] = useState("");
     const [profile, setProfile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [isNavOpen, setIsNavOpen] = useState(false);
     const [prayerRequests, setPrayerRequests] = useState([]);
     const [activeTab, setActiveTab] = useState("dashboard");
     const [editProfile, setEditProfile] = useState({firstName: "", lastName: ""});
@@ -276,8 +277,8 @@ export const SupporterView = () => {
     return (
         <div className="bg-linear-to-r from-white to-accent-light-green min-h-screen relative">
             <div className="max-w-7xl mx-auto px-4 py-8 flex flex-col items-center">
-                <div className="w-full max-w-2xl flex justify-between items-center mb-12">
-                    <div className="flex items-center gap-4 text-left">
+                <div className="w-full max-w-2xl flex flex-col sm:flex-row justify-between items-center gap-6 mb-12">
+                    <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
                         <div
                             className="w-16 h-16 rounded-full overflow-hidden border-2 border-accent-mid-green bg-white flex items-center justify-center shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
                             onClick={() => setActiveTab('settings')}
@@ -310,9 +311,46 @@ export const SupporterView = () => {
                     </button>
                 </div>
 
-                {/* Tabs */}
+                {/* Mobile Hamburger Nav for Tabs */}
+                <div className="sm:hidden w-full max-w-2xl mx-auto mb-8 sticky top-4 z-40">
+                    <button
+                        onClick={() => setIsNavOpen(!isNavOpen)}
+                        className="w-full flex items-center justify-between px-6 py-4 bg-white/90 backdrop-blur-md border border-accent-mid-green rounded-2xl shadow-md text-accent-dark-green font-bold transition-all"
+                    >
+                        <div className="flex items-center gap-3">
+                            {tabs.find(t => t.id === activeTab)?.icon}
+                            <span>{tabs.find(t => t.id === activeTab)?.label}</span>
+                        </div>
+                        <svg
+                            className={`transition-transform duration-300 ${isNavOpen ? 'rotate-180' : ''}`}
+                            xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                        >
+                            <path d="m6 9 6 6 6-6"></path>
+                        </svg>
+                    </button>
+
+                    <div
+                        className={`absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-accent-mid-green/20 overflow-hidden transition-all duration-300 ${isNavOpen ? 'max-h-96 opacity-100 visible' : 'max-h-0 opacity-0 invisible'}`}>
+                        {tabs.map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => {
+                                    setActiveTab(tab.id);
+                                    setIsNavOpen(false);
+                                }}
+                                className={`w-full flex items-center gap-4 px-6 py-4 text-sm font-bold transition-all ${activeTab === tab.id ? 'bg-accent-light-green/30 text-accent-dark-green' : 'text-gray-500 hover:bg-gray-50'}`}
+                            >
+                                {tab.icon}
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Tabs (Desktop) */}
                 <div
-                    className="flex flex-wrap justify-center items-center gap-2 p-1 bg-gray-100/50 backdrop-blur-md rounded-2xl mb-8 border border-white/20 sticky top-4 z-40 shadow-sm w-full max-w-2xl mx-auto">
+                    className="hidden sm:flex flex-wrap justify-center items-center gap-2 p-1 bg-gray-100/50 backdrop-blur-md rounded-2xl mb-8 border border-white/20 sticky top-4 z-40 shadow-sm w-full max-w-2xl mx-auto">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}

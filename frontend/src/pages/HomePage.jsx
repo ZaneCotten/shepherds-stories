@@ -7,7 +7,7 @@ const HomePage = () => (
         <div className="bg-white flex min-h-screen">
             {/* Main Content Column */}
             <div className="w-full flex flex-col items-center justify-center p-6">
-                <h1 className="text-header-1 font-sans:roboto text-center text-accent-mid-green mb-8">
+                <h1 className="text-header-3 sm:text-header-1 font-sans:roboto text-center text-accent-mid-green mb-8 leading-tight">
                     Shepherds' Stories
                 </h1>
 

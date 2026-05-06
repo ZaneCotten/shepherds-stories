@@ -33,7 +33,7 @@ export const ConnectionRequests = ({requests, setRequests}) => {
                 <div className="flex flex-col gap-4">
                     {requests.map((req) => (
                         <div key={req.id}
-                             className="flex justify-between items-center p-6 bg-white rounded-2xl border border-accent-light-green shadow-lg hover:shadow-xl transition-shadow">
+                             className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 p-6 bg-white rounded-2xl border border-accent-light-green shadow-lg hover:shadow-xl transition-shadow">
                             <span
                                 className="text-lg font-bold text-accent-dark-green cursor-pointer hover:underline"
                                 onClick={() => setSelectedUser({
@@ -44,12 +44,12 @@ export const ConnectionRequests = ({requests, setRequests}) => {
                             >
                                 {req.supporterName}
                             </span>
-                            <div className="flex gap-3">
+                            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                                 <button onClick={() => handleRespond(req.id, true)}
-                                        className="px-6 py-2 rounded-xl bg-accent-mid-green text-white text-sm font-bold hover:bg-accent-dark-green transition shadow-md active:scale-95">Approve
+                                        className="w-full sm:w-auto px-6 py-2 rounded-xl bg-accent-mid-green text-white text-sm font-bold hover:bg-accent-dark-green transition shadow-md active:scale-95">Approve
                                 </button>
                                 <button onClick={() => handleRespond(req.id, false)}
-                                        className="px-6 py-2 rounded-xl border border-red-200 text-red-500 text-sm font-bold hover:bg-red-50 transition active:scale-95">Deny
+                                        className="px-6 py-2 w-full sm:w-auto rounded-xl border border-red-200 text-red-500 text-sm font-bold hover:bg-red-50 transition active:scale-95">Deny
                                 </button>
                             </div>
                         </div>
