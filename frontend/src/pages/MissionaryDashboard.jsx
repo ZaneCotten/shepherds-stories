@@ -1,6 +1,7 @@
 import React, {useState, useEffect} from 'react';
 import PostFeed from "./PostFeed.jsx";
 import ConnectionRequests from "./ConnectionRequests.jsx";
+import PrayerRequestManager from "../components/PrayerRequestManager.jsx";
 import SupporterList from "./SupporterList.jsx";
 import BannedUsers from "./BannedUsers.jsx";
 import ProfileModal from "../components/ProfileModal.jsx";
@@ -394,6 +395,16 @@ export const MissionaryDashboard = () => {
                                     )
                                 },
                                 {
+                                    id: 'prayer-requests', label: 'Prayer Requests', icon: (
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                                             strokeLinecap="round" strokeLinejoin="round">
+                                            <path
+                                                d="M12 21l-8.205-8.205a5.8 5.8 0 0 1 0-8.205 5.8 5.8 0 0 1 8.205 0l.92.92.92-.92a5.8 5.8 0 0 1 8.205 0 5.8 5.8 0 0 1 0 8.205L12 21z"></path>
+                                        </svg>
+                                    )
+                                },
+                                {
                                     id: 'settings', label: 'Settings', icon: (
                                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
                                              viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
@@ -413,6 +424,7 @@ export const MissionaryDashboard = () => {
                                         id: 'requests',
                                         label: `Requests ${requests.length > 0 ? `(${requests.length})` : ''}`
                                     },
+                                    {id: 'prayer-requests', label: 'Prayer Requests'},
                                     {id: 'settings', label: 'Settings'}
                                 ].find(t => t.id === activeTab).label
                             }</span>
@@ -528,6 +540,16 @@ export const MissionaryDashboard = () => {
                             )
                         },
                         {
+                            id: 'prayer-requests', label: 'Prayer Requests', icon: (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                     fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                                     strokeLinejoin="round">
+                                    <path
+                                        d="M12 21l-8.205-8.205a5.8 5.8 0 0 1 0-8.205 5.8 5.8 0 0 1 8.205 0l.92.92.92-.92a5.8 5.8 0 0 1 8.205 0 5.8 5.8 0 0 1 0 8.205L12 21z"></path>
+                                </svg>
+                            )
+                        },
+                        {
                             id: 'settings', label: 'Settings', icon: (
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
                                      fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
@@ -557,6 +579,7 @@ export const MissionaryDashboard = () => {
                 <div className="flex flex-col items-center">
                     {activeTab === 'feed' && <PostFeed posts={posts} setPosts={setPosts}/>}
                     {activeTab === 'requests' && <ConnectionRequests requests={requests} setRequests={setRequests}/>}
+                    {activeTab === 'prayer-requests' && <PrayerRequestManager/>}
                     {activeTab === 'supporters' && <SupporterList/>}
 
                     {activeTab === 'settings' && (
